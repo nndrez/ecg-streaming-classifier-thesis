@@ -47,19 +47,20 @@ Si elencano i contributi principali del lavoro:
 \begin{itemize}
   \item \textbf{Realizzazione di una pipeline sperimentale completa} in Scala che integra training batch e inferenza in streaming su dati ECG simulati, mantenendo la separazione tra livelli di acquisizione, elaborazione e persistenza.
   \item \textbf{Approccio pragmatico al feature engineering} su battiti cardiaci (intervalli RR, descrittori morfologici del QRS, misure di variabilità e statistiche derivate) e definizione di uno schema JSON compatto per l'ingestion in Kafka.
-  \item \textbf{Dimostrazione dell'integrazione di Spark Structured Streaming con schema dinamico (\texttt{from\_json}), checkpointing e scritture transazionali su Delta Lake per garantire resilienza, consistenza e ripetibilità delle elaborazioni.
-  \item \textbf{Analisi sperimentale completa della performance del modello (tramite \texttt{MulticlassClassificationEvaluator}) e delle proprietà non funzionali della pipeline, con attenzione a latenze, throughput e stabilità operativa.
-  \item \textbf{Formalizzazione di un caso di studio in cui una stessa architettura può essere riletta sia come sistema di prototipazione accademica sia come base per un futuro deployment in ambito e-Health.
+  \item Dimostrazione dell'integrazione di Spark Structured Streaming con schema dinamico (\texttt{from\_json}), checkpointing e scritture transazionali su Delta Lake per garantire resilienza, consistenza e ripetibilità delle elaborazioni.
+  \item Analisi sperimentale completa della performance del modello (tramite \texttt{MulticlassClassificationEvaluator}) e delle proprietà non funzionali della pipeline, con attenzione a latenze, throughput e stabilità operativa.
+  \item Formalizzazione di un caso di studio in cui una stessa architettura può essere riletta sia come sistema di prototipazione accademica sia come base per un futuro deployment in ambito e-Health.
 \end{itemize}
 
 \section{Struttura della tesi}\label{sec:struttura-della-tesi}
 La trattazione è organizzata come segue:
-
-\textbf{Capitolo 1} descrive il dominio applicativo e il dataset utilizzato (MIT-BIH), includendo considerazioni su feature cliniche, preprocessing del segnale e paradigma Edge Computing.
-\textbf{Capitolo 2} giustifica le scelte tecnologiche adottate, soffermandosi sui vantaggi di Scala, Spark, Kafka KRaft e Delta Lake nel contesto di pipeline distribuite.
-\textbf{Capitolo 3} illustra l'architettura complessiva e la scomposizione in tre moduli principali: \texttt{EcgModelTrainer} (batch), \texttt{EcgPatientSimulator} (ingestion) e \texttt{EcgStreamingPredictor} (streaming).
-\textbf{Capitolo 4} approfondisce dettagli implementativi, mostrando frammenti di codice e spiegando le scelte di configurazione della ML pipeline e del producer Kafka.
-\textbf{Capitolo 5} presenta la valutazione sperimentale, confrontando metriche di accuratezza, analisi di falsi positivi/negativi, e misure di latenze e throughput; infine, le conclusioni espongono valutazioni complessive e possibili linee di estensione verso modelli deep e integrazione analitica con Delta Lake.
+\begin{itemize}
+  \item \textbf{Capitolo 1} descrive il dominio applicativo e il dataset utilizzato (MIT-BIH), includendo considerazioni su feature cliniche, preprocessing del segnale e paradigma Edge Computing.
+  \item \textbf{Capitolo 2} giustifica le scelte tecnologiche adottate, soffermandosi sui vantaggi di Scala, Spark, Kafka KRaft e Delta Lake nel contesto di pipeline distribuite.
+  \item \textbf{Capitolo 3} illustra l'architettura complessiva e la scomposizione in tre moduli principali: \texttt{EcgModelTrainer} (batch), \texttt{EcgPatientSimulator} (ingestion) e \texttt{EcgStreamingPredictor} (streaming).
+  \item \textbf{Cawpitolo 4} approfondisce dettagli implementativi, mostrando frammenti di codice e spiegando le scelte di configurazione della ML pipeline e del producer Kafka.
+  \item \textbf{Capitolo 5} presenta la valutazione sperimentale, confrontando metriche di accuratezza, analisi di falsi positivi/negativi, e misure di latenze e throughput; infine, le conclusioni espongono valutazioni complessive e possibili linee di estensione verso modelli deep e integrazione analitica con Delta Lake.
+\end{itemize}
 
 I file sorgente principali del progetto contengono i componenti citati (\texttt{EcgModelTrainer}, \texttt{EcgPatientSimulator}, \texttt{EcgStreamingPredictor}) e la documentazione implementativa è richiamata nei capitoli successivi dove si analizzano implementazione e risultati.
 Questa impostazione consente di collegare in modo diretto la descrizione teorica con le scelte effettivamente adottate nel repository, evitando una trattazione puramente astratta.
