@@ -11,9 +11,6 @@
 out/
 /out/
 
-# Ignora eventuali PDF generati nella root (rimuovi se vuoi versionare il PDF finale)
-*.pdf
-
 # ========================================
 # Fallback: File ausiliari LaTeX
 # (Utile se compili da terminale o se qualche pacchetto scrive fuori da out/)
