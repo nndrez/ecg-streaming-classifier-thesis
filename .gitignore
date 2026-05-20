@@ -1,0 +1,69 @@
+# ========================================
+# IDE e Editor (IntelliJ IDEA)
+# ========================================
+.idea/
+*.iml
+
+# ========================================
+# Directory di Output / Build
+# ========================================
+# Ignora tutto ciò che viene generato nella cartella di output
+out/
+/out/
+
+# Ignora eventuali PDF generati nella root (rimuovi se vuoi versionare il PDF finale)
+*.pdf
+
+# ========================================
+# Fallback: File ausiliari LaTeX
+# (Utile se compili da terminale o se qualche pacchetto scrive fuori da out/)
+# ========================================
+## Core latex/pdflatex:
+*.aux
+*.lof
+*.log
+*.lot
+*.fls
+*.out
+*.toc
+*.fmt
+*.fot
+*.cb
+*.cb2
+.*.lb
+
+## Intermediate documents:
+*.dvi
+*.xdv
+*-converted-to.*
+
+## Bibliography auxiliary files (bibtex/biblatex/biber):
+*.bbl
+*.bcf
+*.blg
+*-blx.aux
+*-blx.bib
+*.run.xml
+
+## Build tool auxiliary files:
+*.fdb_latexmk
+*.synctex
+*.synctex(busy)
+*.synctex.gz
+*.synctex.gz(busy)
+*.pdfsync
+
+## File ausiliari comuni da altri pacchetti (glossaries, minted, ecc.):
+*.acn
+*.acr
+*.alg
+*.glg
+*.glo
+*.gls
+*.glsdefs
+*.ist
+*.loa
+_minted*
+*.pyg
+
+AGENTS.md

@@ -1,0 +1,65 @@
+\section{Contesto e motivazione}
+Le patologie cardiovascolari rappresentano una delle prime cause di morbilità e mortalità a livello globale; il monitoraggio continuo dell'attività cardiaca tramite segnali ECG è pertanto centrale per la diagnosi precoce e la gestione clinica.
+
+In molti scenari applicativi, l'interpretazione del segnale non può essere affidata esclusivamente a una valutazione umana ex post, poiché il valore informativo del battito risiede anche nella \emph{tempestività} con cui viene rilevata un'anomalia.
+Da questo punto di vista, l'analisi automatica dei battiti cardiaci pone sfide tecniche sostanziali:
+\begin{itemize}
+  \item La necessità di elaborazione \textbf{near-real-time},
+  \item La gestione di flussi ad alta velocità,
+  \item La robustezza rispetto a fault e perdita di pacchetti,
+  \item La capacità di mantenere \emph{consistenza} tra fasi di ingestione, predizione e persistenza.
+\end{itemize}
+
+Nel dominio medico i trade-off tra \textbf{precisione} e \textbf{sensibilità} ricoprono un ruolo critico.
+I falsi negativi possono portare a omissioni diagnostiche rilevanti, mentre i falsi positivi possono introdurre rumore operativo e aumentare il carico di verifica manuale.
+
+Ne deriva l'esigenza di una pipeline che non si limiti a produrre una classificazione accurata, ma che sia anche \emph{interpretabile} dal punto di vista architetturale, scalabile nel numero di sorgenti e adatta a operare su infrastrutture distribuite.
+In tale prospettiva, il progetto affronta il problema della classificazione di battiti ECG come un caso di studio per l'integrazione tra \textbf{machine learning classico} e \textbf{data streaming}.
+
+\section{Approccio e scelte tecnologiche}\label{sec:approccio-e-scelte-tecnologiche}
+In questo lavoro si affronta il problema della classificazione di battiti ECG in un contesto di streaming, privilegiando un'architettura che consenta \textbf{disaccoppiamento} tra ingestion e processing, resilienza ai guasti e scalabilità orizzontale.
+
+La soluzione proposta impiega tecnologie consolidate nello stack Big Data:
+\begin{itemize}
+  \item \textbf{Scala}: implementazione del sistema e dei componenti della pipeline,
+  \item \textbf{Apache Kafka}: broker Pub/Sub per la messaggistica asincrona,
+  \item \textbf{Apache Spark}: elaborazione batch (MLlib) e streaming (Structured Streaming),
+  \item \textbf{Delta Lake}: sink transazionale per la persistenza dei risultati.
+\end{itemize}
+
+Questa combinazione consente di separare in modo netto la responsabilità di acquisizione dei dati dalla responsabilità di inferenza, evitando che il carico di una fase condizioni in maniera diretta l'altra.
+
+La scelta di una soluzione \emph{ibrida batch/streaming} risponde a un'esigenza precisa: i modelli predittivi possono essere addestrati su archivi storici con costi computazionali più elevati, mentre l'inferenza deve operare con latenza contenuta e comportamento deterministico.
+Il progetto adotta quindi una pipeline che riproduce un ciclo realistico di produzione dei dati, addestramento e serving, offrendo un contesto coerente per valutare non soltanto la qualità del classificatore, ma anche la solidità dell'infrastruttura sottostante.
+
+\section{Obiettivi}\label{sec:obiettivi}
+Gli obiettivi perseguiti sono i seguenti:
+\begin{enumerate}
+  \item Progettare e implementare una \textbf{pipeline end-to-end} per la classificazione di battiti ECG in near-real-time, rispettando requisiti di tolleranza ai fault, scalabilità e disaccoppiamento tra le componenti.
+  \item Sviluppare un processo di \textbf{addestramento batch} per un modello basato su Random Forest, includendo fasi di feature engineering, selezione delle variabili e validazione sperimentale.
+  \item Implementare un meccanismo di \textbf{ingestion realistico} tramite un simulatore (\texttt{EcgPatientSimulator}) che converte dati del dataset MIT-BIH in payload JSON e li pubblica su Kafka.
+  \item Eseguire \textbf{inferenza in streaming} con Spark Structured Streaming, garantendo atomicità delle scritture su Delta Lake tramite checkpointing e \texttt{foreachBatch}, così da preservare la continuità operativa in presenza di interruzioni.
+  \item Valutare la qualità del modello con metriche di classificazione e analizzare \emph{latenze}, \emph{throughput} e comportamento del sistema al variare del volume dei messaggi.
+\end{enumerate}
+
+\section{Contributi}\label{sec:contributi}
+Si elencano i contributi principali del lavoro:
+\begin{itemize}
+  \item \textbf{Realizzazione di una pipeline sperimentale completa} in Scala che integra training batch e inferenza in streaming su dati ECG simulati, mantenendo la separazione tra livelli di acquisizione, elaborazione e persistenza.
+  \item \textbf{Approccio pragmatico al feature engineering} su battiti cardiaci (intervalli RR, descrittori morfologici del QRS, misure di variabilità e statistiche derivate) e definizione di uno schema JSON compatto per l'ingestion in Kafka.
+  \item \textbf{Dimostrazione dell'integrazione di Spark Structured Streaming con schema dinamico (\texttt{from\_json}), checkpointing e scritture transazionali su Delta Lake per garantire resilienza, consistenza e ripetibilità delle elaborazioni.
+  \item \textbf{Analisi sperimentale completa della performance del modello (tramite \texttt{MulticlassClassificationEvaluator}) e delle proprietà non funzionali della pipeline, con attenzione a latenze, throughput e stabilità operativa.
+  \item \textbf{Formalizzazione di un caso di studio in cui una stessa architettura può essere riletta sia come sistema di prototipazione accademica sia come base per un futuro deployment in ambito e-Health.
+\end{itemize}
+
+\section{Struttura della tesi}\label{sec:struttura-della-tesi}
+La trattazione è organizzata come segue:
+
+\textbf{Capitolo 1} descrive il dominio applicativo e il dataset utilizzato (MIT-BIH), includendo considerazioni su feature cliniche, preprocessing del segnale e paradigma Edge Computing.
+\textbf{Capitolo 2} giustifica le scelte tecnologiche adottate, soffermandosi sui vantaggi di Scala, Spark, Kafka KRaft e Delta Lake nel contesto di pipeline distribuite.
+\textbf{Capitolo 3} illustra l'architettura complessiva e la scomposizione in tre moduli principali: \texttt{EcgModelTrainer} (batch), \texttt{EcgPatientSimulator} (ingestion) e \texttt{EcgStreamingPredictor} (streaming).
+\textbf{Capitolo 4} approfondisce dettagli implementativi, mostrando frammenti di codice e spiegando le scelte di configurazione della ML pipeline e del producer Kafka.
+\textbf{Capitolo 5} presenta la valutazione sperimentale, confrontando metriche di accuratezza, analisi di falsi positivi/negativi, e misure di latenze e throughput; infine, le conclusioni espongono valutazioni complessive e possibili linee di estensione verso modelli deep e integrazione analitica con Delta Lake.
+
+I file sorgente principali del progetto contengono i componenti citati (\texttt{EcgModelTrainer}, \texttt{EcgPatientSimulator}, \texttt{EcgStreamingPredictor}) e la documentazione implementativa è richiamata nei capitoli successivi dove si analizzano implementazione e risultati.
+Questa impostazione consente di collegare in modo diretto la descrizione teorica con le scelte effettivamente adottate nel repository, evitando una trattazione puramente astratta.

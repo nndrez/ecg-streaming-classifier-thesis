@@ -1,0 +1,88 @@
+\section{Dominio applicativo: il segnale ECG}\label{sec:dominio-applicativo}
+Il segnale elettrocardiografico (ECG) rappresenta la proiezione elettrica dell'attività cardiaca misurata sulla superficie corporea.
+Dal punto di vista fisiologico, esso riflette la sequenza di depolarizzazione e ripolarizzazione delle camere cardiache e consente di osservare, con risoluzione temporale elevata, eventi che sono spesso immediatamente correlati allo stato elettrico del miocardio.
+
+La morfologia tipica di un battito è costituita dalle onde \textbf{P}, \textbf{QRS} e \textbf{T}, dove il complesso QRS corrisponde alla depolarizzazione ventricolare e fornisce informazioni sulla morfologia del battito, sulla durata dell'attivazione ventricolare e sulla presenza di eventuali alterazioni della conduzione.
+Gli \emph{intervalli RR} (intervalli temporali tra picchi R consecutivi) sono la misura principale per la valutazione della frequenza cardiaca e delle sue variazioni; in presenza di aritmie, la distribuzione degli RR tende a mostrare pattern irregolari che risultano informativi per la classificazione automatica.
+
+Dal punto di vista computazionale, il battito ECG può essere rappresentato come una \textbf{sequenza multiscala}: una componente temporale, legata alla distanza tra eventi successivi, e una componente morfologica, legata alla forma del tracciato locale.
+Questa doppia prospettiva è rilevante perché consente di trasformare un segnale continuo in un insieme di osservazioni etichettate, ciascuna delle quali sintetizza un istante clinicamente significativo.
+Tale rappresentazione è particolarmente adatta a modelli supervisionati che richiedono feature numeriche stabilizzate e confrontabili nel tempo.
+
+Le \emph{caratteristiche clinicamente rilevanti}, usate come base per il feature engineering in questo lavoro, includono:
+
+\begin{itemize}
+  \item \textbf{Intervalli RR}: valore medio, deviazione standard, differenze successive (RR\_diff) e caratteristiche time-domain per variabilità della frequenza cardiaca (\emph{Heart Rate Variability}, HRV).
+  \item \textbf{Morfologia del complesso QRS}: ampiezze e durate dei sottocomplessi (Q, R, S), asimmetria del battito e descriptor di forma (es. skewness, kurtosis) su finestra centrata sul picco R.
+  \item \textbf{Attributi derivati dalla segmentazione}: area sotto la curva, durata del segmento PR e QT quando disponibili, e misure relative di energia spettrale su bande di frequenza.
+\end{itemize}
+
+Tali feature costituiscono il \emph{vettore di ingresso} per modelli di tipo classical ML (ad esempio Random Forest) e sono estratte mediante \textbf{pipeline di preprocessing} che include filtraggio dei rumori (baseline wander, power-line interference), rilevamento dei picchi R e normalizzazione temporale e di ampiezza.
+Metodi consolidati per il R-peak detection, quali l'algoritmo di \emph{Pan--Tompkins}, sono comunemente adottati nella letteratura e fungono da riferimento per le fasi preliminari di feature extraction.
+
+La scelta di lavorare su feature ingegnerizzate, invece che sul segnale raw, riduce la complessità del modello e facilita l'integrazione con infrastrutture di streaming che richiedono payload compatti e semantica esplicita.
+
+\subsection{Preprocessing e qualità del segnale}\label{subsec:preprocessing}
+La qualità del segnale influisce direttamente sulla qualità delle feature: il \textbf{filtraggio passa-banda} (tipicamente 0.5--40 Hz) e le \emph{tecniche di denoising} sono prerequisiti per una segmentazione affidabile.
+Inoltre, è necessario gestire artefatti dovuti al movimento e variazioni di contatto degli elettrodi; a livello di pipeline si adottano \emph{controlli di qualità} (signal quality index) e strategie di imputazione o scarto dei battiti non affidabili.
+
+Nel contesto di una pipeline distribuita, tali operazioni hanno anche una valenza architetturale: un preprocessing accurato riduce la propagazione di errori verso il classificatore e limita il numero di eventi da processare downstream.
+
+Il preprocessing può essere interpretato come una \textbf{fase di normalizzazione semantica}: il segnale fisiologico viene trasformato in una rappresentazione più regolare, allineata ai requisiti del modello ML. In una soluzione produttiva, questa fase può essere eseguita in prossimità della sorgente, sul dispositivo edge o su un gateway di aggregazione, così da trasmettere verso il livello centrale soltanto campioni già filtrati o attributi sintetici.
+
+\section{Dataset: MIT--BIH Arrhythmia Database}\label{sec:dataset}
+Per la fase sperimentale si è scelto il \textbf{MIT--BIH Arrhythmia Database}, una risorsa largamente utilizzata per studi di classificazione di battiti.
+Il dataset è stato selezionato per tre motivi principali: diffusione nella letteratura, presenza di annotazioni beat-to-beat affidabili e disponibilità di una varietà di aritmie sufficienti a testare una pipeline di classificazione multiclass.
+
+Le caratteristiche salienti del dataset sono:
+\begin{itemize}
+  \item 48 registrazioni di durata approssimativa pari a 30 minuti ciascuna, provenienti da 47 soggetti.
+  \item Frequenza di campionamento standard pari a 360 Hz e risoluzione a 11 bit su un intervallo di ampiezza tipico di 10 mV.
+  \item Annotazioni beat-to-beat fornite da esperti clinici che consentono la definizione di etichette per diverse classi di battiti (ad esempio battiti normali, \emph{premature ventricular contractions} ---PVC---, pause e altre aritmie annotate nel dataset).
+\end{itemize}
+
+Il dataset presenta caratteristiche di \emph{imbalance tra classi}, con una prevalenza di battiti normali rispetto alle classi patologiche.
+Tale squilibrio impone scelte metodologiche specifiche durante l'addestramento: si valutano tecniche di \textbf{class weighting}, undersampling delle classi maggioritarie e oversampling sintetico delle minoritarie, tenendo però conto del rischio di overfitting e della perdita di informazione clinica.
+In assenza di tali accorgimenti, il modello tende a massimizzare l'accuratezza globale classificando la maggior parte degli esempi nella classe dominante, comportamento poco utile in ambito medico.
+
+Dal punto di vista sperimentale, il MIT--BIH offre un \emph{compromesso favorevole} tra complessità e riproducibilità.
+Le registrazioni sono sufficientemente eterogenee da introdurre variabilità, ma non così numerose da rendere difficile l'analisi delle scelte progettuali.
+Questo lo rende adatto a una tesi magistrale in cui l'obiettivo non è soltanto la performance predittiva, bensì la dimostrazione di un'architettura completa, dal dato storico fino al flusso in tempo quasi reale.
+
+\subsection{Tipologie di anomalie contenute e limiti}\label{subsec:tipologie-di-anomalie}
+Le annotazioni del MIT--BIH includono un insieme \emph{variegato} di eventi cardiaci, in particolare \textbf{ectopie ventricolari} (PVC), alterazioni di conduzione (es. blocchi di branca) e battiti supraventricolari annotati quando presenti.
+In alcune tracce sono presenti anche eventi più rari o forme di rumore che possono influenzare la fase di segmentazione.
+
+Tuttavia, il dataset non è esaustivo rispetto a tutte le condizioni cliniche: alcune aritmie rare o stati come la fibrillazione atriale cronica potrebbero essere sottorappresentati.
+Per questo motivo la \emph{generalizzabilità} dei risultati a popolazioni cliniche differenti richiede attenzione e, idealmente, validazione su dataset complementari.
+
+Dal punto di vista di un classificatore supervisionato, la presenza di classi eterogenee e di segnali di qualità non uniforme obbliga a definire in modo rigoroso la catena di preprocessing.
+La qualità finale del modello dipende infatti non solo dall'algoritmo di apprendimento, ma anche dalla coerenza fra annotazioni, segmentazione e rappresentazione delle feature.
+
+\section{Edge Computing e ruolo del simulatore}\label{sec:edge-computing}
+Nel contesto operativo reale, la raccolta dei segnali ECG e la prima fase di feature engineering possono essere eseguite su dispositivi edge (\textbf{wearable}, edge nodes, gateway), riducendo latenza e uso di banda e preservando la privacy dei dati sensibili.
+
+L'approccio edge implica i seguenti \textbf{vantaggi} e \textbf{vincoli}:
+
+\begin{itemize}
+  \item \emph{Riduzione del traffico di rete}: inviando solo feature o eventi rilevati anziché il flusso raw, con conseguente risparmio energetico e miglioramento della scalabilità della soluzione di ingestion.
+  \item \emph{Trade-off computazionali}: l'esecuzione di algoritmi di signal processing su device a risorse limitate richiede ottimizzazioni e compromessi su accuratezza e consumo energetico.
+  \item \emph{Considerazioni di privacy e compliance}: l'elaborazione edge consente di limitare la trasmissione dei dati raw e di applicare policy di anonimizzazione o aggregazione prima dell'invio al broker.
+\end{itemize}
+
+Nel repository il componente \texttt{EcgPatientSimulator} funge da \textbf{generatore mock} per la pipeline di ingestion: esso trasforma porzioni annotate del MIT--BIH in payload JSON pubblicati sul topic \texttt{ecg-beats}.
+Questa scelta permette di testare la pipeline end-to-end in ambiente controllato; in un deployment reale il simulatore sarebbe rimpiazzato da un modulo edge che esegue feature extraction e pubblica i risultati al broker.
+
+Il simulatore svolge quindi una \emph{funzione metodologica}, perché consente di avvicinare il comportamento del sistema a uno scenario reale senza introdurre dipendenze hardware o complessità operative non necessarie alla fase sperimentale.
+
+L'adozione di un simulatore facilita inoltre la \emph{riproducibilità degli esperimenti}: le sequenze di eventi possono essere reintrodotte più volte, con la stessa logica di generazione, al fine di confrontare diverse configurazioni del classificatore e del livello streaming.
+In questo modo il progetto conserva un carattere sperimentale rigoroso pur rimanendo aderente a una possibile evoluzione industriale.
+
+\section{Considerazioni etiche e implicazioni cliniche}\label{sec:considerazioni-etiche-e-implicazioni-cliniche}
+Nell'applicazione di modelli ML a dati clinici è necessario considerare l'impatto di \textbf{falsi negativi} e \textbf{falsi positivi}.
+In un contesto di monitoraggio continuo, un falso negativo (mancata identificazione di un evento patologico) può avere conseguenze cliniche gravi; pertanto nella fase di valutazione si presta particolare attenzione a metriche che riflettano \emph{sensibilità} e \emph{specificità}, non limitandosi esclusivamente all'accuratezza globale.
+
+Il problema non è soltanto statistico, ma anche operativo: il sistema deve produrre un output compatibile con i vincoli di sorveglianza e con i tempi di reazione richiesti dal contesto clinico.
+
+Inoltre, si sottolinea l'importanza della \textbf{validazione clinica esterna} e dell'\emph{interpretabilità} del modello come prerequisiti per un'adozione in ambito sanitario.
+Una soluzione predittiva usata in scenari reali dovrebbe essere sottoposta a verifica su popolazioni diverse, con protocolli di valutazione che considerino distribuzioni di pazienti, device e condizioni di acquisizione non necessariamente coincidenti con quelle del dataset di riferimento.

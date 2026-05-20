@@ -1,0 +1,118 @@
+\documentclass[a4paper, 11pt, oneside, openright]{book}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[italian]{babel}
+\usepackage[a4paper, margin=25mm]{geometry}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{csquotes}
+\usepackage[hidelinks]{hyperref}
+\usepackage[linesnumbered,ruled]{algorithm2e}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{biblatex}
+\usepackage{lmodern}
+\usepackage{float}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{pgfplots}
+
+\lstset{
+  belowcaptionskip=1\baselineskip,
+  breaklines=true,
+  frame=none,
+  numbers=none, 
+  basicstyle=\footnotesize\ttfamily,
+  keywordstyle=\bfseries\color{green!40!black},
+  commentstyle=\itshape\color{purple!40!black},
+  identifierstyle=\color{blue},
+  backgroundcolor=\color{gray!10!white},
+  showstringspaces=false,
+}
+
+\setlist[itemize]{label=\tiny$\bullet$}
+
+\setlength{\textfloatsep}{28.0pt plus 14.0pt minus 14.0pt}
+\setlength{\floatsep}{28.0pt plus 14.0pt minus 14.0pt}
+\setlength{\intextsep}{28.0pt plus 14.0pt minus 14.0pt}
+
+\graphicspath{{images/}}
+
+\newenvironment{abstract}%
+  {\clearpage\null\vfill\begin{center}%
+    \bfseries\abstractname\end{center}}%
+  {\vfill\null}
+
+\setlength\parskip{\baselineskip}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+
+\raggedbottom
+
+\pgfplotsset{compat=1.18}
+
+\addbibresource{references.bib}
+
+\begin{document}
+
+    \input{titlepage}
+
+    \thispagestyle{empty}
+    \cleardoublepage
+
+    \thispagestyle{empty}
+    \null\vspace{\stretch{1}}
+        \begin{flushright}
+            \textit{Dedica}
+        \end{flushright}
+    \vspace{\stretch{2}}\null
+
+    \newpage
+    \thispagestyle{empty}
+    \cleardoublepage
+
+    \thispagestyle{empty}
+    \input{chapters/abstract}
+
+    \newpage
+    \thispagestyle{empty}
+
+    \tableofcontents
+    \listoffigures
+
+    \chapter{Introduzione}
+    \label{ch:introduzione}
+    \input{chapters/introduction}
+
+    \chapter{Dominio Applicativo e Dataset}
+    \label{ch:dominio-applicativo-e-dataset}
+    \input{chapters/chapter-1}
+
+    \chapter[Stack Tecnologico]{Lo Stack Tecnologico}
+    \label{ch:lo-stack-tecnologico}
+    \input{chapters/chapter-2}
+
+    \chapter[Caso di studio]{Progettazione e Architettura del Sistema}
+    \label{ch:progettazione-e-architettura-del-sistema}
+    \input{chapters/chapter-3}
+
+    \chapter[Caso di studio]{Implementazione e Dettagli Tecnici}
+    \label{ch:implementazione-e-dettagli-tecnici}
+    \input{chapters/chapter-4}
+
+    \chapter[Caso di studio]{Analisi dei Risultati e Test}
+    \label{ch:analisi-dei-risultati-e-test}
+    \input{chapters/chapter-5}
+
+    \chapter[Conclusioni]{Conclusioni}
+    \label{ch:conclusioni}
+    \input{chapters/conclusion}
+
+    \newpage
+    \printbibliography
+
+\end{document}

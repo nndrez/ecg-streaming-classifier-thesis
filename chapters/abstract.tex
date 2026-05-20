@@ -1,0 +1,25 @@
+\begin{abstract}
+Si presenta un sistema per la classificazione \emph{near-real-time} di flussi ECG (elettrocardiogramma) basato su un approccio \textbf{ibrido batch/streaming}.
+
+Il problema è affrontato come una pipeline di decisione distribuita nella quale l'addestramento del modello avviene in modo \emph{off-line} su dati storici, mentre l'inferenza è eseguita su eventi in arrivo con vincoli di latenza compatibili con scenari di monitoraggio continuo.
+L'architettura è stata implementata in \textbf{Scala} e combina un layer di addestramento batch, realizzato con \textbf{Apache Spark MLlib}, e un layer di inferenza in streaming, realizzato con \textbf{Spark Structured Streaming} che consuma messaggi da un broker \textbf{Kafka}.
+
+Le \emph{feature} utilizzate sono estratte a livello di battito e riflettono sia proprietà temporali sia proprietà morfologiche del segnale: intervalli RR, statistiche di variabilità della frequenza cardiaca (HRV), descrittori del complesso QRS e attributi derivati dalla segmentazione del beat.
+Questa rappresentazione riduce la dimensionalità del problema e consente di applicare modelli di \emph{classical machine learning} su vettori strutturati, costruiti tramite \texttt{VectorAssembler}.
+
+Il modello scelto per l'implementazione sperimentale è un \texttt{RandomForestClassifier} configurato con 100 alberi e profondità massima pari a 15, in modo da bilanciare capacità discriminativa, robustezza rispetto al rumore e semplicità di deployment.
+
+La pipeline complessiva prevede quattro fasi principali:
+\begin{enumerate}
+  \item Preparazione e pulizia dei dati storici per l'addestramento, comprensiva di normalizzazione delle feature e gestione degli outlier;
+  \item Serializzazione e deploy del modello su storage locale, così da rendere l'inferenza indipendente dalla fase di training;
+  \item Simulazione di ingestion in \emph{real-time} tramite il componente \texttt{EcgPatientSimulator} che pubblica payload JSON sul topic \texttt{ecg-beats};
+  \item Lettura dai topic Kafka, deserializzazione dinamica con \texttt{from\_json}, applicazione del modello nel componente \texttt{EcgStreamingPredictor} e persistenza dei risultati in \textbf{Delta Lake} con \emph{checkpointing} e \texttt{foreachBatch} per garantire tolleranza ai fault, recupero in caso di failure e comportamento \emph{exactly-once} a livello di micro-batch.
+\end{enumerate}
+
+La valutazione sperimentale adotta il \texttt{MulticlassClassificationEvaluator} per misurare l'accuratezza e analizzare il bilanciamento tra falsi positivi e falsi negativi, con particolare attenzione all'impatto clinico di quest'ultimi.
+
+Accanto alla qualità predittiva, si discutono \emph{latenze end-to-end}, \emph{throughput} e comportamento della pipeline in presenza di componenti disaccoppiati, evidenziando il ruolo della messaggistica asincrona e dello storage transazionale.
+
+Le evidenze sperimentali e i trade-off architetturali sono riportati nel dettaglio nei capitoli dedicati; possibili estensioni includono l'adozione di modelli deep (RNN/LSTM o Transformer) per analisi diretta del segnale raw, l'arricchimento del flusso con feature estratte su edge device e l'integrazione di dashboard analitiche con Delta Lake.
+\end{abstract}
