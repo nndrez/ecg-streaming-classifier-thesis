@@ -1,9 +1,324 @@
-\section{Data Pipeline e Machine Learning}
-\subsection{Preprocessing e Feature Engineering (VectorAssembler, StringIndexer)}
-\subsection{Serializzazione e persistenza del modello ML}
+\section{Organizzazione del codice sorgente}\label{sec:organizzazione-codice}
 
-\section{Gestione dello Streaming}
-\subsection{Parsing dei messaggi JSON e gestione degli schemi dinamici}
-\subsection{Gestione degli stati e Checkpointing per la fault-tolerance}
+Il repository \texttt{ecg-streaming-classifier} segue una struttura piatta, coerente con la dimensione del progetto:
 
-\section{Storage e Sink: Salvataggio dei risultati in Delta Lake per analisi storiche}
+\begin{verbatim}
+src/main/scala/
+  AppRunner.scala
+  batch/EcgModelTrainer.scala
+  streaming/EcgPatientSimulator.scala
+  streaming/EcgStreamingPredictor.scala
+  utils/Config.scala
+\end{verbatim}
+
+Il package root è \texttt{it.utiu.thesis}, definito in \texttt{build.sbt} tramite \texttt{idePackagePrefix}.
+I sotto-package \texttt{batch}, \texttt{streaming} e \texttt{utils} separano responsabilità senza introdurre layer di astrazione superflui.
+
+\subsection{Centralizzazione della configurazione}
+
+Tutti i parametri operativi risiedono in \texttt{utils.Config}:
+
+\begin{lstlisting}[language=Scala,caption={Parametri centralizzati in \texttt{Config.scala}.},label={lst:config}]
+object Config {
+  val KAFKA_BOOTSTRAP_SERVERS = "localhost:9092"
+  val KAFKA_TOPIC = "ecg-input-stream"
+  val SPARK_MASTER = "local[*]"
+
+  val DATASET_PATH = "/home/andrea/data/ecg/*.csv"
+  val ML_MODEL_PATH = "ml-model/ecg-pipeline-model"
+
+  val DELTA_PREDICTIONS_PATH = "spark-warehouse/ecg_predictions"
+  val STREAMING_CHECKPOINT_PATH =
+    "spark-warehouse/checkpoints/ecg_predictions"
+}
+\end{lstlisting}
+
+La configurazione hardcoded è un limite riconosciuto del prototipo.
+In un'evoluzione produttiva, i path e gli endpoint andrebbero esternalizzati tramite Typesafe Config (HOCON), variabili d'ambiente o un servizio di configurazione centralizzato.
+Il path del dataset punta a un percorso assoluto Linux (\texttt{/home/andrea/data/ecg/*.csv}): su Windows o macOS va adattato manualmente prima dell'esecuzione.
+
+\section{Data pipeline e machine learning}\label{sec:data-pipeline-ml}
+
+\subsection{Preprocessing e feature engineering}\label{subsec:preprocessing-fe}
+
+Il trainer legge CSV con header e inferenza automatica dello schema.
+La pulizia è minimale: \texttt{rawDF.na.drop()} elimina righe con qualsiasi valore nullo, senza imputazione.
+
+La selezione delle colonne feature avviene per esclusione:
+
+\begin{lstlisting}[language=Scala,caption={Selezione colonne feature in \texttt{EcgModelTrainer}.},label={lst:feature-cols}]
+val featureCols = cleanDF.columns.filter(colName =>
+  colName != "record" && colName != "type" && colName != "label"
+)
+\end{lstlisting}
+
+Le colonne \texttt{record} (identificativo traccia) e \texttt{type} (etichetta testuale) vengono escluse dal vettore numerico.
+L'esclusione di \texttt{label} è difensiva: evita leakage se la colonna fosse presente nel CSV con valori numerici già indicizzati.
+
+Lo \texttt{StringIndexer} converte \texttt{type} in \texttt{label} numerico:
+
+\begin{lstlisting}[language=Scala,caption={Pipeline ML: indicizzazione, assemblaggio, classificazione.},label={lst:ml-pipeline}]
+val indexer = new StringIndexer()
+  .setInputCol("type")
+  .setOutputCol("label")
+  .setHandleInvalid("keep")
+
+val assembler = new VectorAssembler()
+  .setInputCols(featureCols)
+  .setOutputCol("features")
+  .setHandleInvalid("keep")
+
+val rf = new RandomForestClassifier()
+  .setLabelCol("label")
+  .setFeaturesCol("features")
+  .setNumTrees(100)
+  .setMaxDepth(15)
+
+val pipeline = new Pipeline()
+  .setStages(Array(indexer, assembler, rf))
+\end{lstlisting}
+
+\texttt{setHandleInvalid("keep")} su entrambi gli stadi è una scelta pragmatica.
+In training, etichette o feature mancanti ricevono un bucket dedicato anziché causare eccezioni.
+In streaming, battiti con feature incomplete possono comunque transitare nella pipeline, producendo predizioni potenzialmente inaffidabili.
+Un approccio più rigoroso prevedrebbe filtraggio a monte (\texttt{drop} o quarantena su topic separato) anziché tolleranza silenziosa.
+
+\subsection{Split, addestramento e valutazione}
+
+\begin{lstlisting}[language=Scala,caption={Split train/test e valutazione.},label={lst:train-eval}]
+val Array(trainingData, testData) =
+  cleanDF.randomSplit(Array(0.8, 0.2), seed = 42L)
+
+val pipelineModel = pipeline.fit(trainingData)
+
+val predictions = pipelineModel.transform(testData)
+
+val evaluator = new MulticlassClassificationEvaluator()
+  .setLabelCol("label")
+  .setPredictionCol("prediction")
+  .setMetricName("accuracy")
+
+val accuracy = evaluator.evaluate(predictions)
+\end{lstlisting}
+
+Lo \texttt{seed = 42L} garantisce riproducibilità dello split.
+L'evaluator calcola solo l'accuratezza globale; metriche per-classe (precision, recall, F1) richiederebbero un \texttt{MulticlassClassificationEvaluator} per ogni metrica o l'uso di \texttt{BinaryClassificationMetrics} su coppie one-vs-rest.
+Il Capitolo~\ref{ch:analisi-dei-risultati-e-test} estende l'analisi con metriche più granulari.
+
+\subsection{Iperparametri Random Forest}
+
+\texttt{numTrees=100} e \texttt{maxDepth=15} non sono stati ottimizzati con grid search.
+La scelta riflette un compromesso documentato in letteratura~\cite{breiman2001random}: 100 alberi offrono varianza sufficientemente bassa senza costi eccessivi; profondità 15 limita overfitting su dataset di dimensione moderata.
+Un tuning sistematico con \texttt{CrossValidator} o \texttt{TrainValidationSplit} migliorerebbe la generalizzazione, a costo di tempi di training più lunghi.
+
+\subsection{Serializzazione e persistenza del modello}\label{subsec:serializzazione}
+
+\begin{lstlisting}[language=Scala,caption={Salvataggio pipeline su filesystem.},label={lst:save-model}]
+pipelineModel.write.overwrite().save(modelPath)
+\end{lstlisting}
+
+Spark ML salva la pipeline in una directory con struttura:
+
+\begin{verbatim}
+ml-model/ecg-pipeline-model/
+  metadata/
+  stages/
+    0_StringIndexer_.../
+    1_VectorAssembler_.../
+    2_RandomForestClassificationModel_.../
+\end{verbatim}
+
+Il flag \texttt{overwrite()} consente retraining senza rimozione manuale della directory precedente.
+In produzione, versionare i modelli (MLflow, DVC) eviterebbe sovrascritture accidentali e permetterebbe rollback.
+
+\section{Gestione dello streaming}\label{sec:gestione-streaming}
+
+\subsection{Parsing JSON e schema dinamico}\label{subsec:parsing-json}
+
+Il consumer Kafka decodifica il payload in due passaggi:
+
+\begin{lstlisting}[language=Scala,caption={Parsing messaggi Kafka in \texttt{EcgStreamingPredictor}.},label={lst:from-json}]
+val kafkaStreamDF = spark.readStream
+  .format("kafka")
+  .option("kafka.bootstrap.servers", Config.KAFKA_BOOTSTRAP_SERVERS)
+  .option("subscribe", Config.KAFKA_TOPIC)
+  .option("startingOffsets", "earliest")
+  .load()
+
+val parsedStreamDF = kafkaStreamDF
+  .selectExpr("CAST(value AS STRING) as json_string")
+  .select(from_json(col("json_string"), jsonSchema).alias("data"))
+  .select("data.*")
+\end{lstlisting}
+
+\texttt{startingOffsets=earliest} garantisce che, al primo avvio, vengano consumati tutti i messaggi presenti nel topic.
+In restart con checkpoint, Spark riprende dall'ultimo offset committato, ignorando questa opzione.
+
+L'alternativa professionale --- schema Avro registrato su Confluent Schema Registry --- offrirebbe validazione strict, compatibilità backward/forward e evoluzione controllata.
+Per un prototipo accademico, l'inferenza schema da CSV riduce il boilerplate a costo di accoppiamento implicito.
+
+\subsection{Trasformazione e proiezione output}
+
+\begin{lstlisting}[language=Scala,caption={Inferenza e selezione colonne output.},label={lst:transform}]
+val predictionsStreamDF = pipelineModel.transform(parsedStreamDF)
+
+val finalStreamDF = predictionsStreamDF.select(
+  col("record"),
+  col("type").alias("true_label"),
+  col("prediction"),
+  col("probability")
+)
+\end{lstlisting}
+
+La colonna \texttt{probability} contiene un vettore sparse di probabilità per classe.
+In analisi successive, estrarre la probabilità della classe predetta richiede UDF o parsing del vettore.
+
+\subsection{Checkpointing e fault tolerance}\label{subsec:checkpointing}
+
+L'Algoritmo~\ref{alg:foreach-batch} descrive la logica di \texttt{foreachBatch}.
+
+\begin{algorithm}[H]
+  \caption{Elaborazione micro-batch con \texttt{foreachBatch}}\label{alg:foreach-batch}
+  \KwIn{Micro-batch $B_i$, identificativo $batchId$, path Delta $P$, checkpoint $C$}
+  \KwOut{Predizioni persistite, offset committati}
+  \BlankLine
+  $B_i.\text{persist}()$\;
+  \If{$B_i$ non è vuoto}{
+    Logga $batchId$ e mostra prime 20 righe\;
+    $B_i.\text{write.format("delta").mode("append").save}(P)$\;
+  }
+  $B_i.\text{unpersist}()$\;
+  Spark committa offset in $C$\;
+\end{algorithm}
+
+\begin{lstlisting}[language=Scala,caption={Implementazione \texttt{foreachBatch} con Delta Lake.},label={lst:foreach-batch}]
+val query = finalStreamDF.writeStream
+  .outputMode("append")
+  .option("checkpointLocation", checkpointPath)
+  .foreachBatch { (batchDF: DataFrame, batchId: Long) =>
+    batchDF.persist()
+    if (!batchDF.isEmpty) {
+      batchDF.show(20, truncate = false)
+      batchDF.write.format("delta").mode("append").save(deltaPath)
+    }
+    batchDF.unpersist()
+    ()
+  }
+  .start()
+\end{lstlisting}
+
+\texttt{persist()} evita ricalcolo del batch tra \texttt{isEmpty}, \texttt{show} e \texttt{write}.
+Senza persist, Spark potrebbe rieseguire la catena di trasformazioni tre volte, triplicando il costo computazionale.
+
+\texttt{outputMode("append")} è l'unico mode compatibile con \texttt{foreachBatch} quando il sink non è nativo Spark Streaming.
+Exactly-once a livello di micro-batch si ottiene dalla combinazione:
+\begin{itemize}
+  \item checkpoint che registra offset Kafka processati;
+  \item scrittura Delta atomica per batch;
+  \item restart che riprende dall'ultimo checkpoint senza riprocessare batch già committati.
+\end{itemize}
+
+\section{Storage e sink: Delta Lake}\label{sec:storage-delta}
+
+\subsection{Configurazione sink}
+
+I path di output sono definiti in \texttt{Config}:
+\texttt{DELTA\_PREDICTIONS\_PATH} per i dati di business, \texttt{STREAMING\_CHECKPOINT\_PATH} per i metadati Spark.
+La separazione è fondamentale: cancellare il checkpoint per ``resettare'' l'experimento non deve cancellare le predizioni accumulate.
+
+\subsection{Operazioni successive}
+
+Delta Lake supporta operazioni avanzate non implementate nel prototipo ma rilevanti per un deployment clinico:
+
+\begin{itemize}
+  \item \texttt{OPTIMIZE} --- compattazione file small per query più efficienti;
+  \item \texttt{Z-ORDER BY record} --- clustering per accesso point-query;
+  \item \texttt{DESCRIBE HISTORY} --- audit trail delle modifiche;
+  \item \texttt{RESTORE TO VERSION} --- rollback a snapshot precedente.
+\end{itemize}
+
+Queste funzionalità sono particolarmente utili in ambito regolato, dove tracciabilità e immutabilità del log predittivo sono requisiti non negoziabili~\cite{armbrust2020delta}.
+
+\section{Producer Kafka del simulatore}\label{sec:producer-kafka}
+
+\subsection{Perché KafkaProducer puro}
+
+\texttt{EcgPatientSimulator} usa il client \texttt{KafkaProducer} Java anziché il sink Spark \texttt{writeStream.format("kafka")}.
+La motivazione è architetturale: in produzione, il dispositivo edge non eseguirebbe Spark.
+Usare un producer standalone avvicina il simulatore a un sensore reale che pubblica autonomamente sul broker.
+
+\begin{lstlisting}[language=Scala,caption={Configurazione e invio messaggi Kafka.},label={lst:kafka-producer}]
+val props = new Properties()
+props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
+  Config.KAFKA_BOOTSTRAP_SERVERS)
+props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
+  "org.apache.kafka.common.serialization.StringSerializer")
+props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
+  "org.apache.kafka.common.serialization.StringSerializer")
+
+val producer = new KafkaProducer[String, String](props)
+
+for ((jsonPayload, index) <- jsonRecords.zipWithIndex) {
+  val record = new ProducerRecord[String, String](
+    topic, s"beat-$index", jsonPayload)
+  producer.send(record)
+  Thread.sleep(1000)
+}
+\end{lstlisting}
+
+\subsection{Limiti dell'implementazione}
+
+\begin{itemize}
+  \item \texttt{.collect()} materializza 1000 record sul driver: accettabile in demo, problematico in scala.
+  \item Nessuna gestione errori sul \texttt{send}: callback o \texttt{get()} andrebbero aggiunti per garantire delivery.
+  \item \texttt{Thread.sleep(1000)} introduce rate deterministico, non rappresentativo del jitter reale.
+  \item SparkSession viene creato ma non chiuso (\texttt{spark.stop()} commentato): leak di risorse in esecuzioni ripetute.
+\end{itemize}
+
+\section{Orchestrazione e ciclo di vita}\label{sec:orchestrazione}
+
+\texttt{AppRunner} implementa la sequenza di avvio descritta nel Capitolo~\ref{sec:app-runner}.
+Il frammento saliente riguarda il thread demone del predictor:
+
+\begin{lstlisting}[language=Scala,caption={Avvio predictor in thread demone.},label={lst:app-runner-thread}]
+val predictorThread = new Thread(() => {
+  EcgStreamingPredictor.main(Array.empty)
+})
+predictorThread.setDaemon(true)
+predictorThread.start()
+Thread.sleep(15000)
+EcgPatientSimulator.main(Array.empty)
+predictorThread.join()
+\end{lstlisting}
+
+\texttt{setDaemon(true)} fa sì che la JVM termini quando il main thread completa, anche se il predictor è ancora in \texttt{awaitAnyTermination}.
+In assenza di \texttt{join()}, il programma potrebbe chiudersi prematuramente.
+L'attesa di 15 secondi prima del simulatore è una euristica fragile: un health-check esplicito sarebbe preferibile.
+
+\subsection{Banner di avvio}
+
+\texttt{AppRunner} stampa un banner testuale all'avvio (\texttt{ECG STREAMING CLASSIFIER - BIG DATA PIPELINE}).
+Funge da indicatore visivo in console, senza impatto funzionale sulla pipeline.
+
+\section{Riepilogo implementativo}
+
+La Tabella~\ref{tab:componenti-implementazione} collega ogni componente alle scelte implementative salienti.
+
+\begin{table}[H]
+  \centering
+  \caption{Riepilogo componenti e scelte implementative.}
+  \label{tab:componenti-implementazione}
+  \begin{tabular}{@{}p{3.2cm}p{4.5cm}p{5cm}@{}}
+    \toprule
+    \textbf{Componente} & \textbf{File} & \textbf{Scelta chiave} \\
+    \midrule
+    Orchestratore & \texttt{AppRunner.scala} & Thread demone + sleep 15s \\
+    Trainer & \texttt{EcgModelTrainer.scala} & Pipeline ML, RF 100/15, seed 42 \\
+    Simulatore & \texttt{EcgPatientSimulator.scala} & KafkaProducer, 1000 msg, 1 msg/s \\
+    Predictor & \texttt{EcgStreamingPredictor.scala} & from\_json, foreachBatch, Delta \\
+    Config & \texttt{Config.scala} & Path hardcoded, local[*] \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Il capitolo successivo presenta i risultati sperimentali derivati da questa implementazione, con metriche di classificazione e misure di latenza e throughput.

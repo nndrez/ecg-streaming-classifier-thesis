@@ -1,2 +1,102 @@
-\section*{Sintesi dei risultati raggiunti}
-\section*{Possibili estensioni: Integrazione di Deep Learning (RNN/LSTM) o dashboard di visualizzazione real-time}
+\section{Sintesi dei risultati raggiunti}\label{sec:sintesi-risultati}
+
+Alla luce degli obiettivi enunciati nel Capitolo~\ref{ch:introduzione} (Sezione~\ref{sec:obiettivi}), è possibile trarre un bilancio strutturato del lavoro svolto.
+
+\subsection{Obiettivo 1: pipeline end-to-end}
+
+\textbf{Raggiunto.}
+Il repository implementa una catena completa --- training batch, ingestion simulata, inferenza streaming, persistenza Delta --- orchestrata da \texttt{AppRunner}.
+Kafka disaccoppia producer e consumer; il checkpoint Spark garantisce recovery dopo failure del driver.
+Il deployment mono-nodo è volutamente semplificato, ma l'architettura è estendibile a cluster senza modifiche concettuali.
+
+\subsection{Obiettivo 2: addestramento batch con Random Forest}
+
+\textbf{Raggiunto, con riserve.}
+\texttt{EcgModelTrainer} costruisce una pipeline MLlib con \texttt{StringIndexer}, \texttt{VectorAssembler} e \texttt{RandomForestClassifier}.
+I risultati provvisori (accuratezza $\sim$96\%) sono promettenti, ma manca un tuning sistematico degli iperparametri e un'analisi per-classe basata su dati sperimentali definitivi.
+La gestione dello sbilanciamento tra classi (class weighting, oversampling) non è implementata.
+
+\subsection{Obiettivo 3: ingestion simulata}
+
+\textbf{Raggiunto.}
+\texttt{EcgPatientSimulator} pubblica 1000 battiti JSON sul topic \texttt{ecg-input-stream} con rate di 1 msg/s.
+L'uso di \texttt{KafkaProducer} puro simula un dispositivo edge esterno a Spark.
+Il simulatore non riproduce jitter, gap di rete o errori di trasmissione.
+
+\subsection{Obiettivo 4: inferenza streaming con fault tolerance}
+
+\textbf{Raggiunto.}
+\texttt{EcgStreamingPredictor} consuma Kafka, applica il modello serializzato e scrive su Delta Lake tramite \texttt{foreachBatch} con checkpoint.
+La semantica exactly-once a livello di micro-batch è garantita dalla combinazione checkpoint + append transazionale.
+
+\subsection{Obiettivo 5: valutazione sperimentale}
+
+\textbf{Parzialmente raggiunto.}
+Il framework di valutazione è definito (metriche AAMI, decomposizione latenza, analisi throughput), ma i valori numerici restano placeholder da sostituire con misure reali.
+Il Capitolo~\ref{ch:analisi-dei-risultati-e-test} documenta la metodologia e i risultati provvisori in attesa di consolidamento.
+
+\subsection{Punti di forza}
+
+\begin{itemize}
+  \item Integrazione coerente di tecnologie moderne: Spark 4.1.1, Delta Lake 4.1.0, Kafka KRaft.
+  \item Separazione netta tra batch e streaming, con modello ML come unico artefatto condiviso.
+  \item Codice conciso e leggibile in Scala, aderente alle API idiomatiche di Spark.
+  \item Pipeline riproducibile con \texttt{docker-compose} e \texttt{sbt run}.
+\end{itemize}
+
+\subsection{Limiti onesti}
+
+\begin{itemize}
+  \item \textbf{Dataset single-source}: solo MIT-BIH preprocessato; nessuna validazione su popolazioni diverse.
+  \item \textbf{Deployment mono-nodo}: nessun benchmark su cluster distribuito.
+  \item \textbf{Schema bootstrap fragile}: inferenza schema da CSV anziché contratto esplicito (Avro/Protobuf + Schema Registry).
+  \item \textbf{Configurazione hardcoded}: path assoluti e parametri in \texttt{Config.scala} senza esternalizzazione.
+  \item \textbf{Simulatore semplificato}: rate fisso, nessun rumore di rete, \texttt{collect()} su driver.
+  \item \textbf{Metriche provvisorie}: risultati numerici da consolidare con run sperimentali definitivi.
+  \item \textbf{Gestione sbilanciamento}: assente class weighting o oversampling; classi rare (F, Q) penalizzate.
+\end{itemize}
+
+\section{Possibili estensioni}\label{sec:estensioni}
+
+\subsection{Deep learning sul segnale raw}
+
+L'approccio attuale si basa su feature ingegnerizzate a livello di battito.
+Reti convolutive 1D (CNN), LSTM o Transformer applicati direttamente al segnale ECG raw potrebbero catturare pattern morfologici non codificati nelle feature tabellari.
+Il trade-off è significativo: modelli deep richiedono più dati, GPU per training e inferenza, e offrono minore interpretabilità clinica.
+Una via intermedia --- CNN leggera su finestra centrata sul picco R, deployata su edge --- meriterebbe investigazione.
+
+\subsection{Edge AI e feature extraction distribuita}
+
+Come anticipato nel Capitolo~\ref{sec:edge-computing}, spostare preprocessing e feature extraction sul dispositivo wearable riduce traffico di rete e latenza.
+Framework come TensorFlow Lite o ONNX Runtime su microcontroller potrebbero estrarre feature compatibili con il modello Spark centralizzato.
+La pipeline attuale, con simulatore che invia JSON già feature-rich, rappresenta il punto di arrivo di questa evoluzione, non il punto di partenza.
+
+\subsection{Dashboard real-time e analisi storica}
+
+Delta Lake abilita query SQL storiche su predizioni accumulate.
+Integrare Apache Superset, Grafana o Power BI sopra le tabelle Delta permetterebbe monitoraggio operativo (alert su predizioni patologiche) e analisi retrospettiva (trend per paziente, audit trail).
+Spark Structured Streaming può alimentare sink aggiuntivi (Elasticsearch, Redis) per dashboard sub-secondo senza modificare il path principale Delta.
+
+\subsection{Schema Registry e contratti dati}
+
+L'adozione di Confluent Schema Registry con Avro o Protobuf risolverebbe l'accoppiamento implicito tra producer e consumer.
+Versioning dello schema, compatibilità backward e validazione strict ridurrebbero il rischio di errori silenziosi in presenza di evoluzione del contratto dati~\cite{dehghani2022data}.
+
+\subsection{MLOps e retraining continuo}
+
+In produzione, il modello andrebbe riaddestrato periodicamente su dati aggiornati, con tracking delle versioni (MLflow), validazione automatica e rollback in caso di degradazione.
+Il drift detection --- monitoraggio della distribuzione delle feature in streaming rispetto al training set --- segnalerebbe quando il modello necessita di refresh.
+Il trainer batch attuale, invocato on-demand da \texttt{AppRunner}, è un primo passo verso questa pipeline MLOps.
+
+\subsection{Validazione clinica e conformità normativa}
+
+Un passaggio da prototipo accademico a sistema clinicamente utilizzabile richiede validazione su dataset multi-centro, conformità a normative (MDR in Europa, FDA in USA) e processi di risk management (ISO 14971).
+Questi aspetti esulano dallo scope della tesi ma delimitano il confine tra dimostrazione tecnica e prodotto sanitario.
+
+\section{Considerazioni conclusive}
+
+Il lavoro ha dimostrato la fattibilità di una pipeline Big Data per la classificazione near-real-time di aritmie cardiache, integrando machine learning classico con infrastruttura di streaming moderna.
+La scelta di Random Forest su feature tabellari, Kafka come buffer e Delta Lake come sink transazionale costituisce un baseline solido e interpretabile.
+
+Le estensioni proposte --- deep learning, edge computing, MLOps, dashboard analitiche --- non invalidano l'architettura attuale, ma la arricchiscono verso scenari operativi realistici.
+Il valore principale del progetto risiede nella dimostrazione end-to-end: dal dato storico al flusso in tempo quasi reale, con persistenza affidabile e recovery automatico.

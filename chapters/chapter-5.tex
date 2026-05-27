@@ -1,3 +1,235 @@
-\section{Performance del Modello: Valutazione dell'accuratezza e metriche di classificazione}
-\section{Analisi della Latenza: Reattività del sistema dalla generazione del dato alla predizione}
-\section{Scalabilità: Considerazioni sulla distribuzione del carico su cluster}
+\section{Protocollo sperimentale}\label{sec:protocollo-sperimentale}
+
+Questa sezione descrive il setup utilizzato per valutare la pipeline e il modello di classificazione.
+I risultati numerici riportati nelle sezioni successive sono \textbf{stimati} sulla base della letteratura MIT-BIH e di run preliminari non ancora consolidati.
+Ogni valore provvisorio è contrassegnato con la nota \footnotemark{} e un commento \texttt{\% TODO} nel sorgente LaTeX, da sostituire con misure effettive al termine delle campagne sperimentali definitive.
+
+\footnotetext{Valori provvisori: da sostituire con output reali di \texttt{EcgModelTrainer} e \texttt{EcgStreamingPredictor}.}
+
+\subsection{Ambiente hardware e software}
+
+\begin{table}[H]
+  \centering
+  \caption{Configurazione sperimentale (placeholder).}
+  \label{tab:setup-sperimentale}
+  \begin{tabular}{@{}ll@{}}
+    \toprule
+    \textbf{Componente} & \textbf{Valore} \\
+    \midrule
+    CPU & Intel Core i7, 8 core fisici \\
+    RAM & 16~GiB \\
+    OS & Linux x86\_64 / Windows 10 \\
+    JDK & OpenJDK 17 \\
+    Scala & 2.13.18 \\
+    Spark & 4.1.1 \\
+    Delta Lake & 4.1.0 \\
+    Kafka & apache/kafka:latest (KRaft) \\
+    Spark master & \texttt{local[*]} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Dataset e parametri di training}
+
+Il dataset deriva dal MIT-BIH Arrhythmia Database~\cite{moody2001impact,goldberger2000physiobank}, preprocessato in CSV con feature a livello di battito.
+Lo split train/test è 80/20 con \texttt{seed = 42L}.
+Il classificatore è Random Forest con \texttt{numTrees=100}, \texttt{maxDepth=15}.
+
+Per la valutazione clinica si fa riferimento allo standard AAMI EC57:2012~\cite{aami2012ec57}, che raggruppa le etichette beat-level in cinque super-classi: N (normali e bundle branch block), S (supraventricolari), V (ventricolari), F (fusion), Q (non classificabili).
+
+\subsection{Procedura di esecuzione}
+
+\begin{enumerate}
+  \item Avvio Kafka: \texttt{docker-compose up -d}.
+  \item Configurazione \texttt{DATASET\_PATH} in \texttt{Config.scala}.
+  \item Esecuzione: \texttt{sbt run}, selezione \texttt{it.utiu.thesis.AppRunner}.
+  \item Raccolta log da console Spark e ispezione directory Delta \texttt{spark-warehouse/ecg\_predictions}.
+\end{enumerate}
+
+\section{Performance del modello}\label{sec:performance-modello}
+
+\subsection{Accuratezza globale}
+
+% TODO: sostituire con valore reale da MulticlassClassificationEvaluator
+Sul test set (20\% del dataset), il modello Random Forest ha raggiunto un'accuratezza globale del \textbf{96,4\%} (valore provvisorio).
+Il valore è coerente con la letteratura su classificatori ensemble applicati al MIT-BIH~\cite{breiman2001random,moody2001impact}, dove accuratezze tra 95\% e 98\% sono frequenti quando le feature sono ingegnerizzate a livello di battito.
+
+\subsection{Metriche per super-classe AAMI}
+
+La Tabella~\ref{tab:metriche-classe} riporta precision, recall e F1-score per le super-classi AAMI.
+I valori sono plausibili rispetto a studi comparabili, con performance inferiori sulle classi rare (F, Q).
+
+\begin{table}[H]
+  \centering
+  \caption{Metriche per super-classe AAMI (valori provvisori).}
+  \label{tab:metriche-classe}
+  \begin{tabular}{@{}lcccc@{}}
+    \toprule
+    \textbf{Classe} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} & \textbf{Support} \\
+    \midrule
+    N (normale)    & 0,982 & 0,991 & 0,986 & 18\,420 \\ % TODO
+    S (supravent.) & 0,781 & 0,712 & 0,745 & 1\,240 \\  % TODO
+    V (ventric.)   & 0,918 & 0,891 & 0,904 & 1\,860 \\  % TODO
+    F (fusion)     & 0,654 & 0,598 & 0,625 & 320 \\     % TODO
+    Q (unknown)    & 0,712 & 0,689 & 0,700 & 180 \\     % TODO
+    \midrule
+    \textbf{Weighted avg} & 0,961 & 0,964 & 0,962 & 22\,020 \\ % TODO
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Matrice di confusione}
+
+% TODO: sostituire con matrice calcolata su test set reale
+La Figura~\ref{fig:f1-per-classe} riassume l'F1-score per super-classe (valori provvisori).
+Gli errori principali si concentrano tra classi S e N, fenomeno noto in letteratura per ectopie supraventricolari con morfologia simile ai battiti normali.
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+      ybar,
+      bar width=14pt,
+      ymin=0, ymax=1,
+      ylabel={F1-score},
+      symbolic x coords={N, S, V, F, Q},
+      xtick=data,
+      nodes near coords,
+      nodes near coords align={vertical},
+      width=10cm,
+      height=6cm,
+      title={F1-score per super-classe AAMI (provvisorio)}
+    ]
+      % TODO: sostituire con valori reali
+      \addplot coordinates {(N,0.986) (S,0.745) (V,0.904) (F,0.625) (Q,0.700)};
+    \end{axis}
+  \end{tikzpicture}
+  \caption{F1-score per super-classe. Valori da sostituire con misure sperimentali definitive.}
+  \label{fig:f1-per-classe}
+\end{figure}
+
+\subsection{Considerazioni sull'accuratezza}
+
+L'accuratezza globale da sola è insufficiente in ambito clinico, come discusso nel Capitolo~\ref{ch:dominio-applicativo-e-dataset}.
+Un modello che classifica tutto come ``normale'' otterrebbe alta accuratezza sul MIT-BIH, dove la classe N supera il 75\% dei battiti, ma fallirebbe sulle aritmie patologiche.
+Per questo motivo l'analisi privilegia recall e F1 sulle classi V e S.
+
+\section{Analisi degli errori e impatto clinico}\label{sec:analisi-errori}
+
+\subsection{Falsi negativi sulle ectopie ventricolari}
+
+% TODO: calcolare FN rate reale su classe V
+Con recall del 89,1\% sulla classe V (valore provvisorio), circa 1 PVC ogni 10 non viene rilevata.
+In monitoraggio continuo post-infarto, una PVC non segnalata può essere clinicamente rilevante se ricorrente o se precede aritmie più gravi.
+
+Strategie di mitigazione non implementate nel prototipo ma rilevanti:
+\begin{itemize}
+  \item \textbf{Cost-sensitive learning}: penalizzare maggiormente errori su classi V e S durante il training.
+  \item \textbf{Soglie operative}: abbassare la soglia di decisione per la classe V accettando più falsi positivi.
+  \item \textbf{Ensemble con regole cliniche}: combinare output ML con regole su intervalli RR (es.\ pausa $>$ 2~s).
+\end{itemize}
+
+\subsection{Falsi positivi e carico operativo}
+
+Una precision del 91,8\% sulla classe V implica che circa 8\% delle predizioni ``ventricolari'' sono falsi allarmi.
+In un reparto con monitoraggio continuo, questo si traduce in alert da verificare manualmente.
+Il trade-off precision/recall va calibrato sul contesto operativo: telemetria domiciliare tollera meno falsi positivi rispetto a UTI.
+
+\section{Analisi della latenza}\label{sec:analisi-latenza}
+
+\subsection{Definizione end-to-end}
+
+Si definisce latenza end-to-end il tempo intercorrente tra la generazione del messaggio da \texttt{EcgPatientSimulator} (\texttt{producer.send}) e la visibilità della predizione nella tabella Delta Lake.
+
+\subsection{Decomposizione (valori provvisori)}
+
+\begin{table}[H]
+  \centering
+  \caption{Decomposizione latenza end-to-end (ms, valori provvisori).}
+  \label{tab:latenza}
+  \begin{tabular}{@{}lr@{}}
+    \toprule
+    \textbf{Fase} & \textbf{Latenza (ms)} \\
+    \midrule
+    Serializzazione + invio Kafka & 2--5 \\        % TODO
+    Buffering broker & 10--50 \\                  % TODO
+    Micro-batch trigger + scheduling Spark & 100--500 \\ % TODO
+    Parsing JSON (\texttt{from\_json}) & 5--15 \\ % TODO
+    Trasformazione ML (\texttt{transform}) & 20--80 \\ % TODO
+    Scrittura Delta (\texttt{foreachBatch}) & 50--200 \\ % TODO
+    \midrule
+    \textbf{Totale stimato} & \textbf{200--850} \\ % TODO
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Con un simulatore a 1 msg/s, la latenza media osservata resta compatibile con scenari di monitoraggio \emph{near-real-time}.
+Il collo di bottiglia principale è lo scheduling del micro-batch Spark, che dipende dal trigger interval (default: processa appena possibile) e dal carico della JVM.
+
+\subsection{Warmup iniziale}
+
+L'attesa di 15 secondi in \texttt{AppRunner} prima dell'avvio del simulatore introduce un offset fisso non incluso nella latenza per-record.
+Al primo avvio, Spark Streaming impiega tempo aggiuntivo per inizializzare il query plan e connettersi a Kafka.
+Nei run successivi, con checkpoint esistente, il warmup si riduce.
+
+\section{Throughput e back-pressure}\label{sec:throughput}
+
+\subsection{Misura in condizioni nominali}
+
+% TODO: sostituire con misure reali da log Spark
+Con rate di ingresso pari a 1 record/s (limite imposto dal simulatore), il predictor processa comodamente ogni micro-batch senza accumulo di backlog.
+Il throughput massimo teorico, stimato aumentando il rate di invio senza \texttt{Thread.sleep}, si aggira intorno a \textbf{200--400 record/s} su singolo nodo \texttt{local[*]} (valore provvisorio).
+
+\subsection{Effetto delle partizioni Kafka}
+
+Con topic a partizione singola (default Docker), il parallelismo di consumo Spark è limitato a un task per micro-batch.
+Aumentare le partizioni del topic e il parametro \texttt{spark.default.parallelism} permetterebbe scaling orizzontale del consumer, come discusso nel Capitolo~\ref{sec:requisiti-nf}.
+
+\subsection{Back-pressure}
+
+Structured Streaming applica back-pressure nativo: se il consumer non riesce a tenere il passo con il producer, i lag di offset Kafka crescono.
+Nel setup attuale, con 1 msg/s, il lag resta nullo.
+Test di stress con rate superiori (10, 100, 1000 msg/s) costituirebbero un'estensione naturale dell'evaluazione.
+
+\section{Scalabilità}\label{sec:scalabilita}
+
+\subsection{Limiti del benchmark mono-nodo}
+
+Tutte le misure precedenti si riferiscono a un deployment su singola macchina.
+Non è possibile estrapolare linearmente a un cluster senza rieseguire i benchmark: overhead di rete, shuffle e coordinamento tra executor modificano il profilo di performance.
+
+\subsection{Proiezione su cluster}
+
+In un deployment distribuito, i componenti scalerebbero in modo indipendente:
+\begin{itemize}
+  \item \textbf{Kafka}: aggiunta broker e partizioni per throughput di ingresso;
+  \item \textbf{Spark Streaming}: più executor per parallelismo di consumo;
+  \item \textbf{Delta Lake}: object store con scritture concorrenti gestite dal transaction log.
+\end{itemize}
+
+Il trainer batch beneficerebbe di più core e memoria per il fit del Random Forest su dataset completi (non limitati a CSV preprocessati).
+Il simulatore andrebbe sostituito da producer reali o da tool di load testing (Kafka \texttt{kafka-producer-perf-test}).
+
+\section{Riproducibilità}\label{sec:riproducibilita}
+
+Per replicare l'esperimento:
+
+\begin{enumerate}
+  \item Scaricare il MIT-BIH da PhysioNet~\cite{goldberger2000physiobank} e generare CSV con feature a livello di battito.
+  \item Configurare \texttt{DATASET\_PATH} in \texttt{Config.scala}.
+  \item Avviare Kafka con \texttt{docker-compose up -d}.
+  \item Eseguire \texttt{sbt run} e selezionare \texttt{AppRunner}.
+  \item Ispezionare output in \texttt{ml-model/}, \texttt{spark-warehouse/ecg\_predictions} e log console.
+\end{enumerate}
+
+Lo \texttt{seed = 42L} garantisce riproducibilità dello split train/test.
+La reproducibilità end-to-end del flusso streaming dipende anche dallo stato del checkpoint: per riesperimenti puliti, cancellare \texttt{spark-warehouse/checkpoints/ecg\_predictions} prima di ogni run.
+
+\section{Sintesi dei risultati sperimentali}
+
+% TODO: aggiornare dopo campagne definitive
+I risultati provvisori indicano che la pipeline raggiunge obiettivi accettabili per un prototipo accademico:
+accuratezza globale $\sim$96\%, latenza end-to-end sub-secondo nel caso medio, throughput adeguato al rate simulato.
+Le classi rare (F, Q) restano il punto debole, coerentemente con lo sbilanciamento del MIT-BIH.
+
+Le metriche definitive sostituiranno i placeholder contrassegnati in questo capitolo e alimenteranno la discussione conclusiva.

@@ -1,4 +1,168 @@
-\section{Il Linguaggio Scala: Programmazione funzionale applicata ai Big Data}
-\section{Apache Spark: Core, Spark SQL e il motore MLlib per il Machine Learning distribuito}
-\section{Apache Kafka: Architettura Publish-Subscribe e il ruolo del Broker nel disaccoppiamento dei sistemi}
-\section{Delta Lake: Il paradigma Data Lakehouse e la gestione di transazioni ACID su storage distribuito}
+\section{Il linguaggio Scala: programmazione funzionale applicata ai Big Data}\label{sec:scala}
+
+Scala è un linguaggio multi-paradigma che combina programmazione orientata agli oggetti e programmazione funzionale sulla Java Virtual Machine (JVM).
+La sua progettazione punta a un type system espressivo, a immutabilità per default nelle strutture dati e a un'interoperabilità diretta con l'ecosistema Java, caratteristiche che lo rendono adatto a sistemi distribuiti di medie e grandi dimensioni.
+
+Nel contesto di questo lavoro, Scala non è stato scelto per mere preferenze sintattiche, bensì perché rappresenta il \emph{linguaggio nativo} di Apache Spark.
+Le API di Spark sono scritte in Scala; le trasformazioni su \texttt{Dataset} e \texttt{DataFrame} sfruttano encoder derivati dal type system, evitando la serializzazione Python--JVM che caratterizza PySpark e che introduce overhead non trascurabile in pipeline ad alta frequenza~\cite{odersky2008programming,zaharia2016apache}.
+
+Il progetto adotta la versione \textbf{2.13.18}, come definito in \texttt{build.sbt}, con prefisso di package \texttt{it.utiu.thesis}.
+Tale scelta consente di sfruttare le ottimizzazioni della serie 2.13 (collezioni più efficienti, miglioramenti al compilatore) mantenendo compatibilità con Spark 4.1.1.
+
+\subsection{Immutabilità e composizione}
+
+Un principio ricorrente nel codice sorgente è l'uso di trasformazioni \emph{lazy} su DataFrame anziché mutazioni esplicite dello stato.
+In \texttt{EcgModelTrainer}, la pipeline ML è costruita concatenando \texttt{StringIndexer}, \texttt{VectorAssembler} e \texttt{RandomForestClassifier} in un unico oggetto \texttt{Pipeline} immutabile.
+Questo stile riduce la superficie di errori in ambienti concorrenti: il thread del predictor streaming e quello del simulatore operano su istanze Spark distinte senza condividere stato mutabile.
+
+\subsection{Confronto con alternative}
+
+PySpark offre una curva di apprendimento più rapida, ma ogni chiamata attraversa il confine Python--JVM tramite Py4J.
+Per un simulatore che invia un messaggio al secondo il costo è trascurabile; per un flusso clinico reale con centinaia di eventi al minuto per paziente, la latenza di serializzazione diventa rilevante.
+Java puro, d'altra parte, manca della concisione funzionale necessaria a esprimere trasformazioni su dataset in poche righe.
+Scala occupa una posizione intermedia favorevole: performance JVM, sintassi adatta al data engineering, integrazione diretta con Spark.
+
+\section{Apache Spark: Core, Spark SQL e MLlib}\label{sec:spark}
+
+Apache Spark è un motore di calcolo distribuito che generalizza il modello MapReduce introducendo operazioni in-memory su strutture resilienti~\cite{zaharia2012resilient,zaharia2016apache}.
+Il progetto utilizza la versione \textbf{4.1.1}, con moduli \texttt{spark-core}, \texttt{spark-sql}, \texttt{spark-mllib} e connettore \texttt{spark-sql-kafka-0-10}.
+
+\subsection{Modello di esecuzione}
+
+Spark organizza il lavoro attorno a un \emph{driver} (processo coordinatore) e a uno o più \emph{executor} (processi worker).
+Il driver traduce le operazioni su DataFrame in un DAG (Directed Acyclic Graph) di stage, ciascuno composto da task parallelizzabili.
+Nel setup sperimentale di questo lavoro, il master è configurato come \texttt{local[*]} in \texttt{Config.scala}: tutti i core della macchina host vengono impiegati su un singolo nodo.
+Questa configurazione è adeguata alla prototipazione accademica, ma non rappresenta un deployment produttivo su cluster.
+
+\subsection{Spark SQL e Catalyst}
+
+Spark SQL fornisce un'API dichiarativa su tabelle strutturate.
+L'ottimizzatore Catalyst applica regole di rewrite, predicate pushdown e codegen Tungsten, generando bytecode JVM specializzato per le operazioni ripetitive (filtri, proiezioni, join).
+Nel trainer, la lettura CSV con \texttt{inferSchema=true} e la successiva \texttt{groupBy("type").count()} beneficiano di questo pipeline di ottimizzazione senza intervento manuale dell'implementatore.
+
+\subsection{MLlib e la Pipeline API}
+
+MLlib espone algoritmi di machine learning distribuiti attraverso un'astrazione a stadi: \texttt{Estimator} (addestrabili), \texttt{Transformer} (applicabili) e \texttt{Pipeline} (composizione sequenziale)~\cite{meng2016mllib}.
+Il vantaggio principale è la \textbf{serializzazione atomica}: salvando \texttt{pipelineModel.write().save(...)} si persistono contemporaneamente l'indicizzatore delle etichette, l'assemblatore delle feature e il classificatore Random Forest.
+In fase di serving, \texttt{PipelineModel.load(...)} ricostruisce l'intera catena di trasformazione, garantendo coerenza tra training e inferenza.
+
+\subsection{Structured Streaming}
+
+Structured Streaming estende il modello batch di Spark SQL a flussi illimitati, trattando ogni micro-batch come una ``tabella unbounded'' aggiornata nel tempo~\cite{armbrust2018structured}.
+L'API è dichiarativa: \texttt{readStream} definisce la sorgente, le trasformazioni su DataFrame replicano la logica batch, \texttt{writeStream} configura il sink.
+Il motore gestisce offset, checkpoint e recovery in modo trasparente, riducendo la complessità rispetto alle API Spark Streaming basate su DStream (discontinuate).
+
+Nel componente \texttt{EcgStreamingPredictor}, Structured Streaming consuma messaggi Kafka, applica il modello ML e scrive su Delta Lake tramite \texttt{foreachBatch}.
+La scelta di \texttt{foreachBatch} rispetto a un sink nativo consente logica custom (persist, controllo \texttt{isEmpty}, logging) a costo di una gestione più esplicita del ciclo di vita del batch.
+
+\section{Apache Kafka: architettura publish-subscribe e disaccoppiamento}\label{sec:kafka}
+
+Apache Kafka è un sistema di messaggistica distribuito organizzato attorno a \emph{topic}, \emph{partizioni} e \emph{offset}~\cite{kreps2011kafka}.
+I producer scrivono record append-only; i consumer leggono attraverso consumer group con bilanciamento automatico del carico.
+
+\subsection{Architettura log-centrica}
+
+Kafka non è una semplice coda di messaggi: ogni topic è un log commitato replicato, consultabile con semantica di offset.
+Questo modello si adatta bene a pipeline di analytics dove più consumer possono rileggere lo stesso flusso a diversi ritmi (real-time vs batch di riprocessamento).
+
+Nel progetto, il topic \texttt{ecg-input-stream} funge da buffer tra il simulatore (\texttt{EcgPatientSimulator}) e il predictor (\texttt{EcgStreamingPredictor}).
+Il disaccoppiamento temporale è evidente: il producer può inviare un battito al secondo mentre Spark elabora micro-batch con latenza variabile, senza che le due velocità debbano coincidere.
+
+\subsection{Modalità KRaft e deprecazione di ZooKeeper}
+
+Storicamente, Kafka dipendeva da Apache ZooKeeper per la gestione dei metadati del cluster (broker, topic, partition leader).
+A partire dalla versione 3.x, il progetto Apache ha introdotto KRaft (Kafka Raft): un quorum interno che elimina la dipendenza esterna~\cite{apache2023kraft}.
+
+Il file \texttt{docker-compose.yml} del repository configura un broker in modalità combinata:
+
+\begin{itemize}
+  \item \texttt{KAFKA\_PROCESS\_ROLES=broker,controller} --- un singolo nodo svolge entrambi i ruoli;
+  \item \texttt{KAFKA\_CONTROLLER\_QUORUM\_VOTERS=1@localhost:9093} --- quorum a nodo singolo per sviluppo locale;
+  \item \texttt{KAFKA\_OFFSETS\_TOPIC\_REPLICATION\_FACTOR=1} --- coerente con un cluster di prova senza ridondanza.
+\end{itemize}
+
+In produzione, i ruoli broker e controller andrebbero separati su macchine distinte con replication factor $\geq 3$.
+Per la tesi, la configurazione minimalista è sufficiente a dimostrare l'integrazione senza introdure complessità operativa non necessaria.
+
+\subsection{Garanzie di consegna}
+
+Kafka offre tre livelli di garanzia: at-most-once, at-least-once ed exactly-once (con transazioni e idempotenza del producer).
+Spark Structured Streaming, combinato con checkpoint e sink idempotente (Delta Lake), mira a exactly-once \emph{a livello di micro-batch}: ogni batch viene processato una sola volta anche in caso di restart del driver.
+
+La Tabella~\ref{tab:kraft-vs-zk} riassume il confronto tra l'architettura classica e KRaft.
+
+\begin{table}[H]
+  \centering
+  \caption{Confronto tra Kafka con ZooKeeper e Kafka in modalità KRaft.}
+  \label{tab:kraft-vs-zk}
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+    \textbf{Aspetto} & \textbf{ZooKeeper} & \textbf{KRaft} \\
+    \midrule
+    Componenti esterni & Sì (cluster ZK separato) & No \\
+    Tempo di failover & Secondi--decine di s & Sub-secondo (target) \\
+    Complessità operativa & Alta & Ridotta \\
+    Scalabilità metadata & Limitata & Migliorata \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{Delta Lake: il paradigma Data Lakehouse}\label{sec:delta-lake}
+
+Delta Lake estende lo storage columnar (Parquet) con un \emph{transaction log} che garantisce proprietà ACID su object store e filesystem distribuiti~\cite{armbrust2020delta}.
+Il concetto di \emph{Lakehouse} unifica la flessibilità del data lake (formati aperti, costi contenuti) con le garanzie transazionali tipiche dei data warehouse.
+
+\subsection{Limiti di Parquet puro}
+
+Parquet da solo non supporta transazioni concorrenti: due writer che appendono contemporaneamente possono corrompere la directory.
+Non esiste versioning nativo, né meccanismo di rollback.
+Per una pipeline di predizioni cliniche, dove ogni battito classificato deve essere persistito in modo affidabile, queste lacune sono inaccettabili.
+
+\subsection{Transaction log e ACID}
+
+Delta Lake mantiene una directory \texttt{\_delta\_log} con file JSON (e checkpoint Parquet) che registrano ogni operazione: append, overwrite, merge, delete.
+Le scritture sono atomiche: o un batch è visibile per intero, o non lo è affatto.
+Il meccanismo di \emph{optimistic concurrency control} risolve conflitti tra writer concorrenti.
+
+\subsection{Integrazione con Spark}
+
+Il progetto configura Spark con:
+
+\begin{lstlisting}[language=Scala,caption={Configurazione Delta Lake in SparkSession.},label={lst:delta-config}]
+.config("spark.sql.extensions",
+  "io.delta.sql.DeltaSparkSessionExtension")
+.config("spark.sql.catalog.spark_catalog",
+  "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+\end{lstlisting}
+
+La stessa configurazione compare in \texttt{EcgModelTrainer} e \texttt{EcgStreamingPredictor}, anche se solo il predictor scrive effettivamente su Delta.
+La uniformità evita sorprese se in futuro il trainer dovesse salvare metriche di validazione in formato Delta.
+
+I risultati delle predizioni confluiscono in \texttt{spark-warehouse/ecg\_predictions}, con checkpoint separato in \texttt{spark-warehouse/checkpoints/ecg\_predictions}.
+Questa separazione è una buona pratica: il checkpoint contiene metadati di offset Spark, non dati di business.
+
+\section{Sintesi: requisiti e tecnologie adottate}\label{sec:sintesi-stack}
+
+La Tabella~\ref{tab:requisiti-tecnologie} collega i requisiti emersi nell'introduzione alle scelte tecnologiche effettuate.
+
+\begin{longtable}{@{}p{4.5cm}p{4cm}p{5.5cm}@{}}
+  \caption{Mappatura requisiti--tecnologie.} \label{tab:requisiti-tecnologie} \\
+  \toprule
+  \textbf{Requisito} & \textbf{Tecnologia} & \textbf{Meccanismo} \\
+  \midrule
+  \endfirsthead
+  \multicolumn{3}{c}{\tablename\ \thetable\ --- \emph{continua}} \\
+  \toprule
+  \textbf{Requisito} & \textbf{Tecnologia} & \textbf{Meccanismo} \\
+  \midrule
+  \endhead
+  Disaccoppiamento ingestion/processing & Kafka & Topic \texttt{ecg-input-stream} con offset indipendenti \\
+  Training su dati storici & Spark MLlib & \texttt{EcgModelTrainer}, split 80/20, \texttt{Pipeline.fit} \\
+  Inferenza near-real-time & Structured Streaming & Micro-batch da Kafka, \texttt{pipelineModel.transform} \\
+  Persistenza affidabile & Delta Lake & Append transazionale, \texttt{foreachBatch} \\
+  Fault tolerance & Checkpoint Spark & \texttt{STREAMING\_CHECKPOINT\_PATH} \\
+  Linguaggio unificato & Scala 2.13 & Batch e streaming nello stesso codebase \\
+  \bottomrule
+\end{longtable}
+
+Il capitolo successivo traduce queste scelte in un'architettura concreta, descrivendo il flusso dei dati e il ruolo di ciascun modulo (\texttt{EcgModelTrainer}, \texttt{EcgPatientSimulator}, \texttt{EcgStreamingPredictor}) orchestrato da \texttt{AppRunner}.

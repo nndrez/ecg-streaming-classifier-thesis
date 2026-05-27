@@ -1,4 +1,229 @@
-\section{Panoramica della Pipeline: Descrizione dei tre moduli principali (Batch, Producer, Consumer)}
-\section{Fase di Addestramento (Batch Layer): Implementazione di EcgModelTrainer e utilizzo dell'algoritmo RandomForest}
-\section{Simulazione IoT (Ingestion Layer): Logica del EcgPatientSimulator per l'invio di messaggi JSON su Kafka}
-\section{Inferenza in Tempo Reale (Streaming Layer): Implementazione di EcgStreamingPredictor tramite Spark Structured Streaming}
+\section{Pattern architetturali: Lambda, Kappa e posizionamento del progetto}\label{sec:lambda-kappa}
+
+Le architetture per l'elaborazione di dati in tempo reale si sono consolidate attorno a due modelli principali.
+L'\textbf{architettura Lambda}, descritta da Marz e Warren~\cite{marz2015big}, prevede due pipeline parallele: un \emph{batch layer} che calcola viste corrette su dati storici e uno \emph{speed layer} che gestisce gli aggiornamenti recenti con latenza ridotta.
+I risultati vengono fusi in un \emph{serving layer}.
+
+L'\textbf{architettura Kappa}, proposta da Kreps~\cite{kreps2014questioning}, semplifica il quadro: un unico flusso di eventi alimenta sia l'elaborazione real-time sia il riprocessamento storico, eliminando la duplicazione logica del batch layer.
+
+Il progetto descritto in questa tesi adotta un \emph{ibrido pragmatico}.
+L'addestramento del modello avviene in batch off-line (\texttt{EcgModelTrainer}), mentre l'inferenza opera in streaming (\texttt{EcgStreamingPredictor}).
+Non esiste un vero speed layer che ricalcoli aggregati: il modello viene addestrato periodicamente (o on-demand) e servito come artefatto statico.
+Questa impostazione è più vicina alla Lambda con confine netto tra training e serving, ed è la scelta più comune nei sistemi ML operativi dove la frequenza di retraining è orders of magnitude inferiore alla frequenza di inferenza.
+
+\section{Panoramica della pipeline}\label{sec:panoramica-pipeline}
+
+La pipeline si articola in tre moduli funzionali più un orchestratore:
+
+\begin{enumerate}
+  \item \textbf{Batch layer} --- \texttt{EcgModelTrainer}: legge CSV storici, addestra la pipeline ML, salva il modello su filesystem.
+  \item \textbf{Ingestion layer} --- \texttt{EcgPatientSimulator}: simula un dispositivo edge, pubblica battiti JSON su Kafka.
+  \item \textbf{Streaming layer} --- \texttt{EcgStreamingPredictor}: consuma Kafka, classifica, persiste su Delta Lake.
+  \item \textbf{Orchestratore} --- \texttt{AppRunner}: coordina l'avvio sequenziale dei componenti.
+\end{enumerate}
+
+La Figura~\ref{fig:architettura-logica} mostra il flusso logico dei dati.
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+    node distance=1.1cm and 1.4cm,
+    block/.style={rectangle, draw, rounded corners, minimum width=2.8cm, minimum height=0.9cm, align=center, font=\small},
+    store/.style={cylinder, draw, shape border rotate=90, aspect=0.25, minimum height=1cm, minimum width=1.6cm, align=center, font=\small},
+    arrow/.style={-{Stealth[length=2mm]}, thick}
+  ]
+    \node[store] (csv) {CSV\\MIT-BIH};
+    \node[block, right=of csv] (trainer) {\texttt{EcgModelTrainer}};
+    \node[store, right=of trainer] (model) {PipelineModel\\su FS};
+
+    \node[block, below=1.8cm of csv] (sim) {\texttt{EcgPatientSimulator}};
+    \node[block, right=of sim] (kafka) {Kafka\\ecg-input-stream};
+    \node[block, right=of kafka] (predictor) {\texttt{EcgStreamingPredictor}};
+    \node[store, right=of predictor] (delta) {Delta Lake\\predictions};
+
+    \node[block, above=0.6cm of predictor] (runner) {\texttt{AppRunner}};
+
+    \draw[arrow] (csv) -- (trainer);
+    \draw[arrow] (trainer) -- (model);
+    \draw[arrow] (csv) -- (sim);
+    \draw[arrow] (sim) -- (kafka);
+    \draw[arrow] (kafka) -- (predictor);
+    \draw[arrow] (model) -- (predictor);
+    \draw[arrow] (predictor) -- (delta);
+
+    \draw[dashed, gray] (runner.south) -- ++(0,-0.3) -| (trainer.north);
+    \draw[dashed, gray] (runner.south) -- ++(0,-0.3) -| (predictor.north);
+    \draw[dashed, gray] (runner.south) -- ++(0,-0.3) -| (sim.north);
+  \end{tikzpicture}
+  \caption{Vista logica della pipeline: flusso batch (training), ingestion (simulatore) e streaming (inferenza). Le linee tratteggiate indicano il ruolo orchestratorio di \texttt{AppRunner}.}
+  \label{fig:architettura-logica}
+\end{figure}
+
+Il modello ML è l'unico artefatto condiviso tra batch e streaming: viene prodotto dal trainer e consumato dal predictor tramite \texttt{PipelineModel.load}.
+Kafka funge da cuscinetto temporale tra producer e consumer; Delta Lake materializza l'output per analisi successive.
+
+\section{Vista fisica e deployment}\label{sec:vista-fisica}
+
+In ambiente sperimentale, l'intera pipeline gira su un singolo host di sviluppo.
+La Figura~\ref{fig:deployment} illustra la disposizione fisica.
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+    host/.style={rectangle, draw, dashed, rounded corners, minimum width=11cm, minimum height=5cm},
+    block/.style={rectangle, draw, rounded corners, minimum width=2.6cm, minimum height=0.85cm, align=center, font=\small},
+    docker/.style={rectangle, draw, fill=gray!8, rounded corners, minimum width=3.2cm, minimum height=1.6cm, align=center, font=\small},
+    arrow/.style={-{Stealth[length=2mm]}, thick}
+  ]
+    \node[host, label={[font=\small\bfseries]above:Host di sviluppo (localhost)}] (host) {};
+    \node[block] at ([xshift=-3.2cm, yshift=0.8cm]host.center) (jvm1) {JVM Spark\\Trainer};
+    \node[block] at ([xshift=0cm, yshift=0.8cm]host.center) (jvm2) {JVM Spark\\Predictor};
+    \node[block] at ([xshift=3.2cm, yshift=0.8cm]host.center) (jvm3) {JVM Spark\\Simulator};
+    \node[docker] at ([yshift=-1.2cm]host.center) (kafka) {Docker\\Kafka KRaft\\:9092};
+    \node[block] at ([xshift=-2.5cm, yshift=-1.2cm]host.center) (fs) {FS locale\\model + delta};
+
+    \draw[arrow] (jvm3) -- node[above, font=\tiny] {produce} (kafka);
+    \draw[arrow] (kafka) -- node[above, font=\tiny] {consume} (jvm2);
+    \draw[arrow] (jvm1) -- (fs);
+    \draw[arrow] (jvm2) -- (fs);
+  \end{tikzpicture}
+  \caption{Deployment mono-nodo: tre processi JVM Spark (\texttt{local[*]}) e un container Docker per Kafka.}
+  \label{fig:deployment}
+\end{figure}
+
+\subsection{Limiti del setup mono-nodo}
+
+La configurazione \texttt{SPARK\_MASTER = "local[*]"} in \texttt{Config.scala} impiega tutti i core disponibili su un'unica macchina.
+Kafka gira in container con replication factor pari a 1.
+Non c'è ridondanza: un crash del host interrompe l'intera pipeline.
+
+In un deployment produttivo, i componenti andrebbero separati:
+Spark su cluster YARN, Kubernetes o Databricks; Kafka su cluster multi-broker con RF$\geq$3; Delta Lake su object store (S3, ADLS) con accesso concorrente.
+Il setup attuale è deliberatamente minimalista: consente di dimostrare l'integrazione end-to-end senza la complessità operativa di un cluster distribuito.
+
+\section{Fase di addestramento: \texttt{EcgModelTrainer}}\label{sec:ecg-model-trainer}
+
+Il modulo batch implementa il ciclo completo di machine learning supervisionato.
+
+\subsection{Flusso operativo}
+
+\begin{enumerate}
+  \item Lettura CSV da \texttt{DATASET\_PATH} con header e inferenza schema.
+  \item Pulizia: \texttt{na.drop()} elimina righe con valori mancanti.
+  \item Split train/test 80/20 con \texttt{seed = 42L} per riproducibilità.
+  \item Costruzione pipeline: \texttt{StringIndexer} $\rightarrow$ \texttt{VectorAssembler} $\rightarrow$ \texttt{RandomForestClassifier}.
+  \item Addestramento (\texttt{pipeline.fit}), valutazione su test set, salvataggio su \texttt{ML\_MODEL\_PATH}.
+\end{enumerate}
+
+Il classificatore Random Forest è configurato con \texttt{numTrees=100} e \texttt{maxDepth=15}, parametri che bilanciano capacità espressiva e rischio di overfitting~\cite{breiman2001random}.
+La scelta di Random Forest rispetto a modelli lineari o reti neurali risponde alla natura tabellare delle feature: intervalli RR, descrittori QRS e statistiche HRV sono già ingegnerizzate; un ensemble di alberi gestisce bene interazioni non lineari senza richiedere normalizzazione rigorosa.
+
+\subsection{Output del trainer}
+
+Il modello salvato include metadata, stages serializzati e statistiche dell'indicizzatore delle etichette.
+In fase di streaming, etichette mai viste in training vengono gestite da \texttt{setHandleInvalid("keep")}, che assegna un indice dedicato anziché sollevare eccezioni.
+Questa scelta privilegia robustezza operativa a scapito di predizioni potenzialmente poco informative su classi unknown.
+
+\section{Simulazione IoT: \texttt{EcgPatientSimulator}}\label{sec:ecg-patient-simulator}
+
+Il simulatore riproduce il comportamento di un dispositivo wearable che trasmette battiti classificati verso un broker centralizzato.
+
+\subsection{Logica di produzione}
+
+\begin{enumerate}
+  \item Lettura di al massimo 1000 record dal CSV (\texttt{.limit(1000)}).
+  \item Serializzazione JSON tramite \texttt{to\_json(struct(col("*")))}.
+  \item Raccolta in memoria (\texttt{.collect()}) e invio sequenziale con \texttt{KafkaProducer}.
+  \item Intervallo di un secondo tra un messaggio e il successivo (\texttt{Thread.sleep(1000)}).
+\end{enumerate}
+
+L'uso di \texttt{KafkaProducer} Java puro, anziché \texttt{df.writeStream.format("kafka")}, simula un producer esterno a Spark.
+In produzione, il dispositivo edge non eseguirebbe Spark: invierebbe payload via API Kafka o MQTT verso un gateway.
+
+\subsection{Schema del payload}
+
+Ogni messaggio contiene tutte le colonne del CSV originale serializzate in JSON: identificativo record, tipo di aritmia (\texttt{type}), feature numeriche e metadati.
+La chiave del messaggio segue il pattern \texttt{beat-\{index\}}, utile per il debug ma non sfruttata dal consumer.
+
+\subsection{Limiti del simulatore}
+
+Il rate fisso di 1 msg/s è una semplificazione: un Holter reale può generare 1--2 battiti al secondo, ma con jitter e gap di trasmissione.
+Il \texttt{.collect()} materializza l'intero dataset in memoria driver: accettabile per 1000 record, inaccettabile per flussi continui.
+Questi limiti sono consapevolmente accettati in sede sperimentale e vengono discussi nelle conclusioni.
+
+\section{Inferenza in tempo reale: \texttt{EcgStreamingPredictor}}\label{sec:ecg-streaming-predictor}
+
+Il predictor è il cuore operativo della pipeline in fase di serving.
+
+\subsection{Bootstrap dello schema JSON}
+
+Una scelta implementativa non banale riguarda la definizione dello schema per \texttt{from\_json}.
+Anziché hardcodare uno struct type, il codice legge lo schema dal CSV di training:
+
+\begin{lstlisting}[language=Scala,caption={Inferenza schema da CSV per \texttt{from\_json}.},label={lst:schema-bootstrap}]
+val jsonSchema = spark.read
+  .option("header", "true")
+  .option("inferSchema", "true")
+  .csv(datasetPath)
+  .schema
+\end{lstlisting}
+
+Il vantaggio è l'assenza di duplicazione: producer e consumer condividono implicitamente la stessa definizione colonne.
+Lo svantaggio è l'accoppiamento: modifiche al CSV di training richiedono riavvio del predictor con schema aggiornato.
+In produzione, un Schema Registry (Confluent) con Avro o Protobuf risolverebbe il contratto in modo esplicito e versionato.
+
+\subsection{Pipeline di inferenza}
+
+\begin{enumerate}
+  \item \texttt{readStream.format("kafka")} con \texttt{startingOffsets=earliest}.
+  \item Cast del payload a stringa, parsing con \texttt{from\_json}.
+  \item Trasformazione tramite \texttt{pipelineModel.transform}.
+  \item Proiezione su colonne \texttt{record}, \texttt{true\_label}, \texttt{prediction}, \texttt{probability}.
+  \item Scrittura su Delta Lake via \texttt{foreachBatch} con checkpoint.
+\end{enumerate}
+
+\subsection{Fault tolerance e exactly-once}
+
+Il checkpoint in \texttt{STREAMING\_CHECKPOINT\_PATH} registra offset Kafka processati e metadati del query plan.
+In caso di failure del driver Spark, il restart riprende dall'ultimo checkpoint committato.
+La combinazione checkpoint + append idempotente su Delta garantisce che ogni micro-batch venga scritto una sola volta, anche se il job viene rilanciato.
+
+\section{Orchestrazione: \texttt{AppRunner}}\label{sec:app-runner}
+
+\texttt{AppRunner} coordina l'avvio dei tre moduli in sequenza logica:
+
+\begin{enumerate}
+  \item Verifica esistenza del modello in \texttt{ML\_MODEL\_PATH}; se assente, invoca \texttt{EcgModelTrainer.main}.
+  \item Avvia \texttt{EcgStreamingPredictor} in un thread demone (\texttt{setDaemon(true)}).
+  \item Attende 15 secondi (\texttt{Thread.sleep(15000)}) per il warmup di Spark Streaming.
+  \item Avvia \texttt{EcgPatientSimulator}.
+  \item Attende la terminazione del thread predictor (\texttt{predictorThread.join()}).
+\end{enumerate}
+
+L'attesa di 15 secondi è una euristica: garantisce che il query streaming sia attivo prima che il simulatore inizi a produrre messaggi, evitando che i primi record vengano consumati con latenza imprevedibile.
+In un sistema produttivo, un health-check esplicito (verifica connessione Kafka + query \texttt{isActive}) sostituirebbe lo sleep fisso.
+
+\section{Requisiti non funzionali}\label{sec:requisiti-nf}
+
+\subsection{Disaccoppiamento}
+
+Kafka isola producer e consumer: il simulatore può terminare dopo 1000 messaggi mentre il predictor continua a processare il backlog.
+Il trainer batch è completamente indipendente dal flusso streaming, eseguibile on-demand o schedulato.
+
+\subsection{Idempotenza e consistenza}
+
+Delta Lake append con checkpoint Spark produce un log immutabile di predizioni.
+Ripetere l'esperimento con gli stessi dati e lo stesso modello genera righe duplicate (non idempotenza a livello di business key), ma non corruzione del dataset.
+Per deduplicazione, un merge su chiave \texttt{record} sarebbe necessario.
+
+\subsection{Scalabilità}
+
+La scalabilità orizzontale passa principalmente dal parallelismo delle partizioni Kafka: ogni partizione può essere consumata da un task Spark distinto.
+Con un topic a partizione singola (default in sviluppo), il parallelismo di consumo è limitato a un task.
+Aumentare le partizioni e il parallelismo Spark (\texttt{spark.default.parallelism}) sblocca throughput superiore.
+
+\subsection{Evolvibilità dello schema}
+
+L'approccio attuale al parsing JSON è fragile rispetto all'evoluzione del contratto dati.
+Delta Lake supporta \emph{schema evolution} in append, ma il parsing \texttt{from\_json} fallirebbe su campi obbligatori mancanti o tipi incompatibili.
+L'adozione futura di formati schema-first (Avro, Protobuf) mitigherebbe il rischio.

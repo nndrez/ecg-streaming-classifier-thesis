@@ -12,13 +12,13 @@ Tale rappresentazione è particolarmente adatta a modelli supervisionati che ric
 Le \emph{caratteristiche clinicamente rilevanti}, usate come base per il feature engineering in questo lavoro, includono:
 
 \begin{itemize}
-  \item \textbf{Intervalli RR}: valore medio, deviazione standard, differenze successive (RR\_diff) e caratteristiche time-domain per variabilità della frequenza cardiaca (\emph{Heart Rate Variability}, HRV).
+  \item \textbf{Intervalli RR}: valore medio, deviazione standard, differenze successive (RR\_diff) e caratteristiche time-domain per variabilità della frequenza cardiaca (\emph{Heart Rate Variability}, HRV)~\cite{taskforce1996hrv}.
   \item \textbf{Morfologia del complesso QRS}: ampiezze e durate dei sottocomplessi (Q, R, S), asimmetria del battito e descriptor di forma (es. skewness, kurtosis) su finestra centrata sul picco R.
   \item \textbf{Attributi derivati dalla segmentazione}: area sotto la curva, durata del segmento PR e QT quando disponibili, e misure relative di energia spettrale su bande di frequenza.
 \end{itemize}
 
 Tali feature costituiscono il \emph{vettore di ingresso} per modelli di tipo classical ML (ad esempio Random Forest) e sono estratte mediante \textbf{pipeline di preprocessing} che include filtraggio dei rumori (baseline wander, power-line interference), rilevamento dei picchi R e normalizzazione temporale e di ampiezza.
-Metodi consolidati per il R-peak detection, quali l'algoritmo di \emph{Pan--Tompkins}, sono comunemente adottati nella letteratura e fungono da riferimento per le fasi preliminari di feature extraction.
+Metodi consolidati per il R-peak detection, quali l'algoritmo di \emph{Pan--Tompkins}~\cite{pan1985realtime}, sono comunemente adottati nella letteratura e fungono da riferimento per le fasi preliminari di feature extraction.
 
 La scelta di lavorare su feature ingegnerizzate, invece che sul segnale raw, riduce la complessità del modello e facilita l'integrazione con infrastrutture di streaming che richiedono payload compatti e semantica esplicita.
 
@@ -31,7 +31,7 @@ Nel contesto di una pipeline distribuita, tali operazioni hanno anche una valenz
 Il preprocessing può essere interpretato come una \textbf{fase di normalizzazione semantica}: il segnale fisiologico viene trasformato in una rappresentazione più regolare, allineata ai requisiti del modello ML. In una soluzione produttiva, questa fase può essere eseguita in prossimità della sorgente, sul dispositivo edge o su un gateway di aggregazione, così da trasmettere verso il livello centrale soltanto campioni già filtrati o attributi sintetici.
 
 \section{Dataset: MIT--BIH Arrhythmia Database}\label{sec:dataset}
-Per la fase sperimentale si è scelto il \textbf{MIT--BIH Arrhythmia Database}, una risorsa largamente utilizzata per studi di classificazione di battiti.
+Per la fase sperimentale si è scelto il \textbf{MIT--BIH Arrhythmia Database}~\cite{moody2001impact,goldberger2000physiobank}, una risorsa largamente utilizzata per studi di classificazione di battiti.
 Il dataset è stato selezionato per tre motivi principali: diffusione nella letteratura, presenza di annotazioni beat-to-beat affidabili e disponibilità di una varietà di aritmie sufficienti a testare una pipeline di classificazione multiclass.
 
 Le caratteristiche salienti del dataset sono:
@@ -70,7 +70,7 @@ L'approccio edge implica i seguenti \textbf{vantaggi} e \textbf{vincoli}:
   \item \emph{Considerazioni di privacy e compliance}: l'elaborazione edge consente di limitare la trasmissione dei dati raw e di applicare policy di anonimizzazione o aggregazione prima dell'invio al broker.
 \end{itemize}
 
-Nel repository il componente \texttt{EcgPatientSimulator} funge da \textbf{generatore mock} per la pipeline di ingestion: esso trasforma porzioni annotate del MIT--BIH in payload JSON pubblicati sul topic \texttt{ecg-beats}.
+Nel repository il componente \texttt{EcgPatientSimulator} funge da \textbf{generatore mock} per la pipeline di ingestion: esso trasforma porzioni annotate del MIT--BIH in payload JSON pubblicati sul topic \texttt{ecg-input-stream}.
 Questa scelta permette di testare la pipeline end-to-end in ambiente controllato; in un deployment reale il simulatore sarebbe rimpiazzato da un modulo edge che esegue feature extraction e pubblica i risultati al broker.
 
 Il simulatore svolge quindi una \emph{funzione metodologica}, perché consente di avvicinare il comportamento del sistema a uno scenario reale senza introdurre dipendenze hardware o complessità operative non necessarie alla fase sperimentale.

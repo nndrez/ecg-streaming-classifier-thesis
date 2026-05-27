@@ -10,7 +10,10 @@
 \usepackage[linesnumbered,ruled]{algorithm2e}
 \usepackage{listings}
 \usepackage{xcolor}
-\usepackage{biblatex}
+\usepackage{amsmath}
+\usepackage[backend=biber,style=ieee,sorting=nyt,maxbibnames=99]{biblatex}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric,fit,calc}
 \usepackage{lmodern}
 \usepackage{float}
 \usepackage{enumitem}
@@ -18,17 +21,27 @@
 \usepackage{longtable}
 \usepackage{pgfplots}
 
+\lstdefinelanguage{Scala}{
+  morekeywords={abstract,case,catch,class,def,do,else,extends,false,final,finally,for,forSome,if,implicit,import,lazy,match,new,null,object,override,package,private,protected,return,sealed,super,this,throw,trait,true,try,type,val,var,while,with,yield,Array,Boolean,Byte,Char,Double,Float,Int,Long,Short,String,Unit,println,Unit},
+  sensitive=true,
+  morecomment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morestring=[b]",
+}
+
 \lstset{
   belowcaptionskip=1\baselineskip,
   breaklines=true,
-  frame=none,
-  numbers=none, 
+  frame=single,
+  numbers=left,
+  numberstyle=\tiny\color{gray},
   basicstyle=\footnotesize\ttfamily,
   keywordstyle=\bfseries\color{green!40!black},
   commentstyle=\itshape\color{purple!40!black},
   identifierstyle=\color{blue},
   backgroundcolor=\color{gray!10!white},
   showstringspaces=false,
+  tabsize=2,
 }
 
 \setlist[itemize]{label=\tiny$\bullet$}
@@ -83,6 +96,7 @@
 
     \tableofcontents
     \listoffigures
+    \listoftables
 
     \chapter{Introduzione}
     \label{ch:introduzione}
