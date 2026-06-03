@@ -37,7 +37,7 @@ Gli obiettivi perseguiti sono i seguenti:
 \begin{enumerate}
   \item Progettare e implementare una \textbf{pipeline end-to-end} per la classificazione di battiti ECG in near-real-time, rispettando requisiti di tolleranza ai fault, scalabilità e disaccoppiamento tra le componenti.
   \item Sviluppare un processo di \textbf{addestramento batch} per un modello basato su Random Forest, includendo fasi di feature engineering, selezione delle variabili e validazione sperimentale.
-  \item Implementare un meccanismo di \textbf{ingestion realistico} tramite un simulatore (\texttt{EcgPatientSimulator}) che converte dati del dataset MIT-BIH in payload JSON e li pubblica su Kafka.
+  \item Implementare un meccanismo di \textbf{ingestion realistico} tramite un simulatore (\texttt{EcgPatientSimulator}) che converte righe del CSV preprocessato (derivato dal MIT-BIH) in payload JSON e li pubblica su Kafka.
   \item Eseguire \textbf{inferenza in streaming} con Spark Structured Streaming, garantendo atomicità delle scritture su Delta Lake tramite checkpointing e \texttt{foreachBatch}, così da preservare la continuità operativa in presenza di interruzioni.
   \item Valutare la qualità del modello con metriche di classificazione e analizzare \emph{latenze}, \emph{throughput} e comportamento del sistema al variare del volume dei messaggi.
 \end{enumerate}
@@ -46,7 +46,7 @@ Gli obiettivi perseguiti sono i seguenti:
 Si elencano i contributi principali del lavoro:
 \begin{itemize}
   \item \textbf{Realizzazione di una pipeline sperimentale completa} in Scala che integra training batch e inferenza in streaming su dati ECG simulati, mantenendo la separazione tra livelli di acquisizione, elaborazione e persistenza.
-  \item \textbf{Approccio pragmatico al feature engineering} su battiti cardiaci (intervalli RR, descrittori morfologici del QRS, misure di variabilità e statistiche derivate) e definizione di uno schema JSON compatto per l'ingestion in Kafka.
+  \item \textbf{Approccio pragmatico al feature engineering} su battiti cardiaci (intervalli \texttt{pre-RR}/\texttt{post-RR}, descrittori morfologici del QRS, durate PQ/QT/ST e coefficienti \texttt{qrs\_morph} su due derivazioni) e definizione di uno schema JSON compatto per l'ingestion in Kafka.
   \item Dimostrazione dell'integrazione di Spark Structured Streaming con schema dinamico (\texttt{from\_json}), checkpointing e scritture transazionali su Delta Lake per garantire resilienza, consistenza e ripetibilità delle elaborazioni.
   \item Analisi sperimentale completa della performance del modello (tramite \texttt{MulticlassClassificationEvaluator}) e delle proprietà non funzionali della pipeline, con attenzione a latenze, throughput e stabilità operativa.
   \item Formalizzazione di un caso di studio in cui una stessa architettura può essere riletta sia come sistema di prototipazione accademica sia come base per un futuro deployment in ambito e-Health.
@@ -55,7 +55,7 @@ Si elencano i contributi principali del lavoro:
 \section{Struttura della tesi}\label{sec:struttura-della-tesi}
 La trattazione è organizzata come segue:
 \begin{itemize}
-  \item \textbf{Capitolo 1} descrive il dominio applicativo e il dataset utilizzato (MIT-BIH), includendo considerazioni su feature cliniche, preprocessing del segnale e paradigma Edge Computing.
+  \item \textbf{Capitolo 1} descrive il dominio applicativo e il dataset utilizzato (MIT-BIH in versione tabellare da Kaggle), includendo considerazioni su feature cliniche, preprocessing del segnale e paradigma Edge Computing.
   \item \textbf{Capitolo 2} giustifica le scelte tecnologiche adottate, soffermandosi sui vantaggi di Scala, Spark, Kafka KRaft e Delta Lake nel contesto di pipeline distribuite.
   \item \textbf{Capitolo 3} illustra l'architettura complessiva e la scomposizione in tre moduli principali: \texttt{EcgModelTrainer} (batch), \texttt{EcgPatientSimulator} (ingestion) e \texttt{EcgStreamingPredictor} (streaming).
   \item \textbf{Capitolo 4} approfondisce dettagli implementativi, mostrando frammenti di codice e spiegando le scelte di configurazione della ML pipeline e del producer Kafka.

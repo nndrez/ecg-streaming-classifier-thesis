@@ -31,8 +31,9 @@ Ogni valore provvisorio è contrassegnato con la nota \footnotemark{} e un comme
 
 \subsection{Dataset e parametri di training}
 
-Il dataset deriva dal MIT-BIH Arrhythmia Database~\cite{moody2001impact,goldberger2000physiobank}, preprocessato in CSV con feature a livello di battito.
-Lo split train/test è 80/20 con \texttt{seed = 42L}.
+Il dataset deriva dal MIT-BIH Arrhythmia Database~\cite{moody2001impact,goldberger2000physiobank}, reso disponibile in formato tabellare nel corpus Kaggle \emph{ECG Arrhythmia Classification Dataset}~\cite{sakib2021kaggle,sakib2021edge}.
+Si utilizza il file \texttt{MIT-BIH Arrhythmia Database.csv} (100\,689 battiti, etichette \texttt{N}/\texttt{SVEB}/\texttt{VEB}/\texttt{F}/\texttt{Q}).
+Lo split train/test è 80/20 con \texttt{seed = 42L} (\texttt{randomSplit}, non lo split predefinito train/test di altri corpus Kaggle a 187 campioni raw).
 Il classificatore è Random Forest con \texttt{numTrees=100}, \texttt{maxDepth=15}.
 
 Per la valutazione clinica si fa riferimento allo standard AAMI EC57:2012~\cite{aami2012ec57}, che raggruppa le etichette beat-level in cinque super-classi: N (normali e bundle branch block), S (supraventricolari), V (ventricolari), F (fusion), Q (non classificabili).
@@ -111,7 +112,7 @@ Gli errori principali si concentrano tra classi S e N, fenomeno noto in letterat
 \subsection{Considerazioni sull'accuratezza}
 
 L'accuratezza globale da sola è insufficiente in ambito clinico, come discusso nel Capitolo~\ref{ch:dominio-applicativo-e-dataset}.
-Un modello che classifica tutto come ``normale'' otterrebbe alta accuratezza sul MIT-BIH, dove la classe N supera il 75\% dei battiti, ma fallirebbe sulle aritmie patologiche.
+Un modello che classifica tutto come ``normale'' otterrebbe alta accuratezza sul file MIT--BIH preprocessato, dove la classe \texttt{N} supera l'89\% dei battiti, ma fallirebbe sulle aritmie patologiche.
 Per questo motivo l'analisi privilegia recall e F1 sulle classi V e S.
 
 \section{Analisi degli errori e impatto clinico}\label{sec:analisi-errori}
@@ -215,7 +216,7 @@ Il simulatore andrebbe sostituito da producer reali o da tool di load testing (K
 Per replicare l'esperimento:
 
 \begin{enumerate}
-  \item Scaricare il MIT-BIH da PhysioNet~\cite{goldberger2000physiobank} e generare CSV con feature a livello di battito.
+  \item Scaricare il corpus da Kaggle~\cite{sakib2021kaggle} e collocare \texttt{MIT-BIH Arrhythmia Database.csv} nel path configurato in \texttt{DATASET\_PATH} (evitando di includere altri CSV del bundle se si vuole limitare l'esperimento al solo MIT--BIH).
   \item Configurare \texttt{DATASET\_PATH} in \texttt{Config.scala}.
   \item Avviare Kafka con \texttt{docker-compose up -d}.
   \item Eseguire \texttt{sbt run} e selezionare \texttt{AppRunner}.

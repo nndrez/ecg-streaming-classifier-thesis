@@ -4,7 +4,7 @@ Si presenta un sistema per la classificazione \emph{near-real-time} di flussi EC
 Il problema è affrontato come una pipeline di decisione distribuita nella quale l'addestramento del modello avviene in modo \emph{off-line} su dati storici, mentre l'inferenza è eseguita su eventi in arrivo con vincoli di latenza compatibili con scenari di monitoraggio continuo.
 L'architettura è stata implementata in \textbf{Scala} e combina un layer di addestramento batch, realizzato con \textbf{Apache Spark MLlib}, e un layer di inferenza in streaming, realizzato con \textbf{Spark Structured Streaming} che consuma messaggi da un broker \textbf{Kafka}.
 
-Le \emph{feature} utilizzate sono estratte a livello di battito e riflettono sia proprietà temporali sia proprietà morfologiche del segnale: intervalli RR, statistiche di variabilità della frequenza cardiaca (HRV), descrittori del complesso QRS e attributi derivati dalla segmentazione del beat.
+Le \emph{feature} utilizzate sono estratte a livello di battito dal dataset Kaggle \emph{ECG Arrhythmia Classification Dataset} e riflettono contesto ritmico locale (intervalli \texttt{pre-RR} e \texttt{post-RR}), ampiezze delle onde P/T e del complesso QRS, durate degli intervali PQ/QT/ST e descrittori morfologici del QRS su due derivazioni (lead~II e V5).
 Questa rappresentazione riduce la dimensionalità del problema e consente di applicare modelli di \emph{classical machine learning} su vettori strutturati, costruiti tramite \texttt{VectorAssembler}.
 
 Il modello scelto per l'implementazione sperimentale è un \texttt{RandomForestClassifier} configurato con 100 alberi e profondità massima pari a 15, in modo da bilanciare capacità discriminativa, robustezza rispetto al rumore e semplicità di deployment.

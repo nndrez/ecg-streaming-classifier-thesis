@@ -1,88 +1,306 @@
 \section{Dominio applicativo: il segnale ECG}\label{sec:dominio-applicativo}
+
 Il segnale elettrocardiografico (ECG) rappresenta la proiezione elettrica dell'attività cardiaca misurata sulla superficie corporea.
-Dal punto di vista fisiologico, esso riflette la sequenza di depolarizzazione e ripolarizzazione delle camere cardiache e consente di osservare, con risoluzione temporale elevata, eventi che sono spesso immediatamente correlati allo stato elettrico del miocardio.
+Dal punto di vista fisiologico, esso riflette la sequenza di depolarizzazione e ripolarizzazione delle camere cardiache e consente di osservare, con risoluzione temporale elevata, eventi che sono spesso immediatamente correlati allo stato elettrico del miocardio~\cite{malmivuo1995bioelectromagnetism}.
 
-La morfologia tipica di un battito è costituita dalle onde \textbf{P}, \textbf{QRS} e \textbf{T}, dove il complesso QRS corrisponde alla depolarizzazione ventricolare e fornisce informazioni sulla morfologia del battito, sulla durata dell'attivazione ventricolare e sulla presenza di eventuali alterazioni della conduzione.
-Gli \emph{intervalli RR} (intervalli temporali tra picchi R consecutivi) sono la misura principale per la valutazione della frequenza cardiaca e delle sue variazioni; in presenza di aritmie, la distribuzione degli RR tende a mostrare pattern irregolari che risultano informativi per la classificazione automatica.
+\subsection{Elettrofisiologia e morfologia del battito}
 
-Dal punto di vista computazionale, il battito ECG può essere rappresentato come una \textbf{sequenza multiscala}: una componente temporale, legata alla distanza tra eventi successivi, e una componente morfologica, legata alla forma del tracciato locale.
-Questa doppia prospettiva è rilevante perché consente di trasformare un segnale continuo in un insieme di osservazioni etichettate, ciascuna delle quali sintetizza un istante clinicamente significativo.
-Tale rappresentazione è particolarmente adatta a modelli supervisionati che richiedono feature numeriche stabilizzate e confrontabili nel tempo.
+L'attivazione elettrica del cuore origina nel \textbf{nodo seno-atriale} (SA), che innesca la depolarizzazione degli atri.
+Il fronte di onda raggiunge poi i ventricoli attraverso il \textbf{nodo atrioventricolare} (AV), il \textbf{fascio di His} e il sistema delle \textbf{fibre di Purkinje}, che distribuiscono l'impulso sul miocardio ventricolare in modo coordinato.
+La sequenza temporale di queste fasi si traduce, sul tracciato, in segmenti e intervalli con significato clinico ben definito.
 
-Le \emph{caratteristiche clinicamente rilevanti}, usate come base per il feature engineering in questo lavoro, includono:
+La morfologia tipica di un battito in ritmo sinusale è costituita dalle onde \textbf{P}, \textbf{QRS} e \textbf{T}:
+l'onda P corrisponde alla depolarizzazione atriale; il complesso QRS alla depolarizzazione ventricolare (con i deflessi Q, R e S che descrivono l'attivazione sequenziale del setto e delle pareti ventricolari); l'onda T alla ripolarizzazione ventricolare.
+Tra questi deflessi si misurano il \textbf{segmento PR} (conduzione atrioventricolare), il \textbf{segmento ST} (fase di ripolarizzazione precoce ventricolare) e l'\textbf{intervallo QT} (durata dell'attività ventricolare totale), spesso corretto per la frequenza cardiaca (QTc) nelle valutazioni cliniche.
 
+La Figura~\ref{fig:ecg-morfologia} sintetizza, in forma schematica, la relazione tra fasi elettriche e morfologia osservabile.
+In applicazioni automatiche, la forma locale del QRS e la durata degli intervalli costituiscono descrittori ad alta densità informativa per la distinzione tra battiti normali e patologici~\cite{dechazal2004automatic}.
+
+% \begin{figure}[H]
+%   \centering
+%   \begin{tikzpicture}[
+%     x=0.95cm, y=0.95cm,
+%     >=Stealth,
+%     wave/.style={line width=1.2pt, black},
+%     guide/.style={dashed, gray!55, line width=0.4pt},
+%     brace/.style={thick, black},
+%     lbl/.style={font=\small},
+%     dist/.style={font=\footnotesize}
+%   ]
+%     % --- assi ---
+%     \draw[->] (-0.15,0) -- (11.5,0) node[below, font=\footnotesize] {tempo};
+%     \draw[->] (0,-0.95) -- (0,1.55) node[left, font=\footnotesize, rotate=90, anchor=south] {ampiezza};
+% 
+%     % --- tracciato (coordinate fisse per allineare annotazioni) ---
+%     \coordinate (Pon)  at (0.9,0);
+%     \coordinate (Ppk)  at (1.35,0.24);
+%     \coordinate (Poff) at (2.05,0);
+%     \coordinate (Qon)  at (3.5,0);
+%     \coordinate (Qpk)  at (3.65,-0.17);
+%     \coordinate (Rpk)  at (4.15,1.08);
+%     \coordinate (Spk)  at (4.55,-0.26);
+%     \coordinate (Jpt)  at (4.95,0);    % fine QRS / inizio ST
+%     \coordinate (Ton)  at (5.85,0);
+%     \coordinate (Tpk)  at (7.0,0.36);
+%     \coordinate (Toff) at (8.75,0);
+% 
+%     \draw[wave]
+%       (0,0) -- (Pon)
+%       .. controls (1.05,0.04) and (1.15,0.24) .. (Ppk)
+%       .. controls (1.55,0.24) and (1.75,0.04) .. (Poff)
+%       -- (Qon)
+%       -- (Qpk) -- (Rpk) -- (Spk) -- (Jpt)
+%       -- (Ton)
+%       .. controls (6.2,0.06) and (6.6,0.38) .. (Tpk)
+%       .. controls (7.4,0.38) and (8.2,0.06) .. (Toff)
+%       -- (10.2,0);
+% 
+%     % --- etichette deflessioni (senza sovrapporre le frecce degli intervalli) ---
+%     \node[lbl] at (Ppk)  [above=3pt] {P};
+%     \node[lbl] at (Rpk)  [above=3pt] {R};
+%     \node[lbl] at (Tpk)  [above=3pt] {T};
+%     \node[lbl, anchor=east]  at ([xshift=-2pt]Qpk) {Q};
+%     \node[lbl, anchor=west]  at ([xshift= 2pt]Spk) {S};
+% 
+%     % --- PR (sopra il tracciato) ---
+%     \def\yPR{1.38}
+%     \draw[guide] (Pon)  -- (Pon |- 0,\yPR);
+%     \draw[guide] (Qon)  -- (Qon |- 0,\yPR);
+%     \draw[brace, <->] (Pon |- 0,\yPR) -- node[above=4pt, dist] {PR} (Qon |- 0,\yPR);
+% 
+%     % --- durata QRS (sopra il complesso, tra inizio Q e punto J) ---
+%     \def\yQRS{1.12}
+%     \draw[guide] (Qon) -- (Qon |- 0,\yQRS);
+%     \draw[guide] (Jpt) -- (Jpt |- 0,\yQRS);
+%     \draw[brace, <->] (Qon |- 0,\yQRS) -- node[above=4pt, dist] {QRS} (Jpt |- 0,\yQRS);
+% 
+%     % --- segmento ST (tratto isoelettrico tra J e inizio T) ---
+%     \def\yST{0.20}
+%     \draw[guide] (Jpt |- 0,\yST) -- (Ton |- 0,\yST);
+%     \node[dist, above=2pt] at ($(Jpt)!0.5!(Ton)$) {ST};
+% 
+%     % --- QT (sotto il tracciato, ben separato da Q e S) ---
+%     \def\yQT{-0.72}
+%     \draw[guide] (Qon)  -- (Qon |- 0,\yQT);
+%     \draw[guide] (Toff) -- (Toff |- 0,\yQT);
+%     \draw[brace, <->] (Qon |- 0,\yQT) -- node[below=4pt, dist] {QT} (Toff |- 0,\yQT);
+%   \end{tikzpicture}
+%   \caption{Morfologia schematica di un battito ECG in ritmo sinusale: deflessioni P, Q, R, S e T; intervalli PR e QT; durata del complesso QRS; segmento ST.}
+%   \label{fig:ecg-morfologia}
+% \end{figure}
+
+Gli \emph{intervalli RR} (distanza temporale tra picchi R consecutivi) sono la misura principale per la frequenza cardiaca e per la \emph{Heart Rate Variability} (HRV).
+In presenza di aritmie, la distribuzione degli RR perde regolarità: ectopie, pause o tachicardie producono sequenze che un classificatore può sfruttare insieme alla morfologia del battito isolato~\cite{taskforce1996hrv,dechazal2004automatic}.
+
+\subsection{Variabilità della frequenza cardiaca}
+
+La HRV quantifica le fluttuazioni dell'intervallo RR attorno al valore medio e riflette, in parte, l'equilibrio tra i sistemi simpatico e parasimpatico.
+Le linee guida del Task Force del 1996~\cite{taskforce1996hrv} distinguono due famiglie di misure, entrambe rilevanti per il feature engineering adottato in questo lavoro.
+
+Nel \textbf{dominio del tempo}, le metriche più diffuse includono:
 \begin{itemize}
-  \item \textbf{Intervalli RR}: valore medio, deviazione standard, differenze successive (RR\_diff) e caratteristiche time-domain per variabilità della frequenza cardiaca (\emph{Heart Rate Variability}, HRV)~\cite{taskforce1996hrv}.
-  \item \textbf{Morfologia del complesso QRS}: ampiezze e durate dei sottocomplessi (Q, R, S), asimmetria del battito e descriptor di forma (es. skewness, kurtosis) su finestra centrata sul picco R.
-  \item \textbf{Attributi derivati dalla segmentazione}: area sotto la curva, durata del segmento PR e QT quando disponibili, e misure relative di energia spettrale su bande di frequenza.
+  \item \textbf{SDNN}: deviazione standard degli intervalli NN (battiti di origine sinusale);
+  \item \textbf{RMSSD}: radice quadrata della media dei quadrati delle differenze successive tra intervalli NN;
+  \item \textbf{pNN50}: percentuale di coppie di intervalli NN consecutivi la cui differenza supera 50~ms.
+\end{itemize}
+RMSSD e pNN50 sono particolarmente sensibili alle componenti ad alta frequenza, associate all'attività vagale a breve termine.
+
+Nel \textbf{dominio della frequenza}, lo spettro della serie RR (tipicamente ricampionata e detrendata) viene suddiviso in bande:
+la componente \textbf{LF} (circa 0.04--0.15~Hz) e la componente \textbf{HF} (circa 0.15--0.40~Hz), quest'ultima legata alla respirazione e al tono parasimpatico.
+Il \textbf{rapporto LF/HF} è usato in letteratura come indicatore sintetico dell'equilibrio autonomico, sebbene la sua interpretazione clinica richieda cautela e contesto del paziente~\cite{taskforce1996hrv}.
+
+Nel dataset impiegato, metriche HRV globali (SDNN, RMSSD, spettro LF/HF) non sono calcolate in tempo reale dalla pipeline Scala; il CSV contiene però intervalli RR locali (\texttt{pre-RR}, \texttt{post-RR}) e descrittori morfologici già estratti offline dal segnale grezzo.
+Il classificatore opera quindi su un livello di astrazione che unifica morfologia istantanea e contesto ritmico immediato attorno al battito corrente.
+
+\subsection{Rappresentazione computazionale e feature}
+
+Dal punto di vista computazionale, il battito ECG può essere rappresentato come una \textbf{sequenza multiscala}: una componente temporale (distanza tra eventi) e una componente morfologica (forma del tracciato locale).
+Questa doppia prospettiva consente di trasformare un segnale continuo in un insieme di osservazioni etichettate, ciascuna associata a un istante clinicamente significativo, adatto a modelli supervisionati che richiedono vettori numerici stabili nel tempo.
+
+Nel file \texttt{MIT-BIH Arrhythmia Database.csv} del corpus Kaggle~\cite{sakib2021kaggle,sakib2021edge}, ogni riga descrive un singolo battito con \textbf{32 feature numeriche} (16 per ciascuna delle due derivazioni, prefissi \texttt{0\_} per lead~II e \texttt{1\_} per lead~V5), oltre a \texttt{record} (identificativo registrazione) e \texttt{type} (etichetta):
+\begin{itemize}
+  \item \textbf{Contesto ritmico}: \texttt{pre-RR} e \texttt{post-RR} (intervalli R--R rispettivamente precedente e successivo al battito corrente, in ms)~\cite{dechazal2004automatic}.
+  \item \textbf{Morfologia delle onde}: ampiezze \texttt{pPeak}, \texttt{qPeak}, \texttt{rPeak}, \texttt{sPeak}, \texttt{tPeak}.
+  \item \textbf{Durata degli intervalli}: \texttt{pq\_interval}, \texttt{qrs\_interval}, \texttt{st\_interval}, \texttt{qt\_interval}.
+  \item \textbf{Forma del QRS}: cinque coefficienti \texttt{qrs\_morph0}--\texttt{qrs\_morph4} che riassumono la morfologia del complesso~\cite{clifford2006advanced}.
 \end{itemize}
 
-Tali feature costituiscono il \emph{vettore di ingresso} per modelli di tipo classical ML (ad esempio Random Forest) e sono estratte mediante \textbf{pipeline di preprocessing} che include filtraggio dei rumori (baseline wander, power-line interference), rilevamento dei picchi R e normalizzazione temporale e di ampiezza.
-Metodi consolidati per il R-peak detection, quali l'algoritmo di \emph{Pan--Tompkins}~\cite{pan1985realtime}, sono comunemente adottati nella letteratura e fungono da riferimento per le fasi preliminari di feature extraction.
-
-La scelta di lavorare su feature ingegnerizzate, invece che sul segnale raw, riduce la complessità del modello e facilita l'integrazione con infrastrutture di streaming che richiedono payload compatti e semantica esplicita.
+Tali attributi costituiscono il \emph{vettore di ingresso} per modelli di machine learning classico (Random Forest nel caso di studio) e sono prodotti da una catena di preprocessing che precede l'addestramento batch.
+La scelta di non trasmettere il segnale raw riduce la complessità del modello, limita il volume dei messaggi Kafka e rende esplicita la semantica di ogni campo nel payload JSON.
 
 \subsection{Preprocessing e qualità del segnale}\label{subsec:preprocessing}
-La qualità del segnale influisce direttamente sulla qualità delle feature: il \textbf{filtraggio passa-banda} (tipicamente 0.5--40 Hz) e le \emph{tecniche di denoising} sono prerequisiti per una segmentazione affidabile.
-Inoltre, è necessario gestire artefatti dovuti al movimento e variazioni di contatto degli elettrodi; a livello di pipeline si adottano \emph{controlli di qualità} (signal quality index) e strategie di imputazione o scarto dei battiti non affidabili.
 
-Nel contesto di una pipeline distribuita, tali operazioni hanno anche una valenza architetturale: un preprocessing accurato riduce la propagazione di errori verso il classificatore e limita il numero di eventi da processare downstream.
+La qualità del segnale condiziona in modo diretto l'affidabilità delle feature.
+Prima della segmentazione beat-to-beat, la letteratura propone una sequenza di operazioni che, nel nostro flusso, sono applicate offline sulla fase di costruzione del CSV, ma che in un deployment edge replicherebbero lo stesso ordine logico~\cite{clifford2006advanced,pan1985realtime}.
 
-Il preprocessing può essere interpretato come una \textbf{fase di normalizzazione semantica}: il segnale fisiologico viene trasformato in una rappresentazione più regolare, allineata ai requisiti del modello ML. In una soluzione produttiva, questa fase può essere eseguita in prossimità della sorgente, sul dispositivo edge o su un gateway di aggregazione, così da trasmettere verso il livello centrale soltanto campioni già filtrati o attributi sintetici.
+\paragraph{Filtraggio.}
+Un \textbf{filtro passa-alto} (tipicamente con frequenza di taglio intorno a 0.5~Hz) attenua il \emph{baseline wander}, derivante da respirazione, movimento del paziente o deriva degli elettrodi.
+Un \textbf{filtro notch} centrato a 50~Hz o 60~Hz rimuove l'interferenza della rete elettrica (\emph{power-line interference}).
+Un \textbf{filtro passa-basso} (spesso tra 35 e 40~Hz, coerente con la banda utile del MIT--BIH) limita il rumore muscolare e le componenti ad alta frequenza poco informative per la classificazione dei battiti.
+In pratica, la combinazione di questi stadi equivale a un filtraggio passa-banda nell'intervallo 0.5--40~Hz citato nelle specifiche del database.
 
-\section{Dataset: MIT--BIH Arrhythmia Database}\label{sec:dataset}
-Per la fase sperimentale si è scelto il \textbf{MIT--BIH Arrhythmia Database}~\cite{moody2001impact,goldberger2000physiobank}, una risorsa largamente utilizzata per studi di classificazione di battiti.
-Il dataset è stato selezionato per tre motivi principali: diffusione nella letteratura, presenza di annotazioni beat-to-beat affidabili e disponibilità di una varietà di aritmie sufficienti a testare una pipeline di classificazione multiclass.
+\paragraph{Rilevamento dei picchi R.}
+L'algoritmo di \emph{Pan--Tompkins}~\cite{pan1985realtime} è un riferimento consolidato per la detection in tempo quasi reale.
+La pipeline prevede: (i)~filtraggio passa-banda; (ii)~derivata per enfatizzare le pendenze del QRS; (iii)~elevamento al quadrato per uniformare la polarità; (iv)~integrazione a finestra mobile per smussare il segnale; (v)~soglia adattiva su due livelli per distinguere picchi veri da artefatti.
+La robustezza dipende dalla calibrazione delle soglie e dalla qualità del tracciato: in presenza di aritmie con morfologie atipiche, un detector generico può richiedere post-processing o regole cliniche aggiuntive.
 
-Le caratteristiche salienti del dataset sono:
+\paragraph{Indice di qualità del segnale.}
+Per evitare che artefatti di movimento o contatto degradino le feature, si adottano \emph{Signal Quality Index} (SQI) che combinano metriche nel dominio del tempo, della frequenza o della forma d'onda~\cite{li2013sqi}.
+Battiti associati a tratti di segnale con SQI insufficiente possono essere scartati, marcati come \emph{unknown} o inviati su un canale di quarantena, riducendo la propagazione di errori verso il classificatore.
+In una pipeline distribuita, questa valutazione ha anche valenza architetturale: filtrare a monte significa trasmettere verso il broker solo eventi affidabili e alleggerire il carico del livello streaming.
+
+Il preprocessing può dunque essere letto come \textbf{normalizzazione semantica}: il segnale fisiologico diventa una rappresentazione tabellare allineata al modello ML.
+In produzione, la fase può risiedere sul dispositivo wearable o su un gateway, così da inviare al data center feature già validate anziché campioni raw ad alta frequenza.
+
+\section{Dataset sperimentale: MIT--BIH tabellare (Kaggle)}\label{sec:dataset}
+
+Per la fase sperimentale si utilizza la versione tabellare del \textbf{MIT--BIH Arrhythmia Database} pubblicata nel corpus Kaggle \emph{ECG Arrhythmia Classification Dataset}~\cite{sakib2021kaggle,sakib2021edge}, derivato dalla raccolta originale su PhysioNet~\cite{moody2001impact,goldberger2000physiobank}.
+Il bundle Kaggle contiene più file CSV (MIT--BIH, MIT--BIH Supraventricular, INCART, SCD Holter); il prototipo Scala legge tramite \texttt{DATASET\_PATH} i file \texttt{*.csv} presenti nella directory configurata: nelle sperimentazioni descritte in questa tesi si assume il file \texttt{MIT-BIH Arrhythmia Database.csv}, così da restare allineati al benchmark MIT--BIH senza mescolare registrazioni di altri database.
+
+\subsection{Origine e caratteristiche del corpus PhysioNet}
+
+Il MIT--BIH originale~\cite{moody2001impact,goldberger2000physiobank} è una raccolta acquisita tra il 1975 e il 1979 presso il Beth Israel Hospital (oggi Beth Israel Deaconess Medical Center), con campionamento a 360~Hz e risoluzione di 11 bit su circa 10~mV di dinamica.
+Il corpus è diventato, nel tempo, uno \emph{benchmark} de facto per la classificazione automatica dei battiti.
+
+Le proprietà salienti del database grezzo sono le seguenti:
 \begin{itemize}
-  \item 48 registrazioni di durata approssimativa pari a 30 minuti ciascuna, provenienti da 47 soggetti.
-  \item Frequenza di campionamento standard pari a 360 Hz e risoluzione a 11 bit su un intervallo di ampiezza tipico di 10 mV.
-  \item Annotazioni beat-to-beat fornite da esperti clinici che consentono la definizione di etichette per diverse classi di battiti (ad esempio battiti normali, \emph{premature ventricular contractions} ---PVC---, pause e altre aritmie annotate nel dataset).
+  \item 48 registrazioni di circa 30 minuti ciascuna, da 47 soggetti (due tracce per un paziente).
+  \item Due canali per registrazione, derivazioni differenti (tipicamente lead I e una derivazione del lead II modificato).
+  \item Annotazioni beat-to-beat curate da più esperti, con codici simbolici per oltre venti categorie di battiti ed eventi non ritmici.
 \end{itemize}
 
-Il dataset presenta caratteristiche di \emph{imbalance tra classi}, con una prevalenza di battiti normali rispetto alle classi patologiche.
-Tale squilibrio impone scelte metodologiche specifiche durante l'addestramento: si valutano tecniche di \textbf{class weighting}, undersampling delle classi maggioritarie e oversampling sintetico delle minoritarie, tenendo però conto del rischio di overfitting e della perdita di informazione clinica.
-In assenza di tali accorgimenti, il modello tende a massimizzare l'accuratezza globale classificando la maggior parte degli esempi nella classe dominante, comportamento poco utile in ambito medico.
+La versione CSV impiegata nel progetto non contiene campioni raw del segnale, bensì battiti già segmentati con feature estratte offline (filtraggio, rilevamento QRS, calcolo di intervalli e descrittori morfologici)~\cite{sakib2021edge,dechazal2004automatic}: la pipeline Scala legge questi archivi senza ripetere sul cluster l'intera catena descritta in \S\ref{subsec:preprocessing}.
 
-Dal punto di vista sperimentale, il MIT--BIH offre un \emph{compromesso favorevole} tra complessità e riproducibilità.
-Le registrazioni sono sufficientemente eterogenee da introdurre variabilità, ma non così numerose da rendere difficile l'analisi delle scelte progettuali.
-Questo lo rende adatto a una tesi magistrale in cui l'obiettivo non è soltanto la performance predittiva, bensì la dimostrazione di un'architettura completa, dal dato storico fino al flusso in tempo quasi reale.
+\subsection{Schema del file CSV e volume dati}
+
+Il file \texttt{MIT-BIH Arrhythmia Database.csv} contiene \textbf{100\,689} battiti da \textbf{44} registrazioni (colonna \texttt{record}), con \textbf{34} colonne totali (identificativo, etichetta e 32 feature).
+Quattro tracce presenti nel MIT--BIH grezzo non compaiono nel CSV preprocessato, probabilmente escluse in fase di estrazione per qualità del segnale o annotazioni incomplete.
+Ogni riga corrisponde a un battito; le feature duplicano la stessa semantica su due derivazioni (lead~II, prefisso \texttt{0\_}; lead~V5, prefisso \texttt{1\_}), come riassunto in Tabella~\ref{tab:csv-schema}.
+
+\subsection{Schema di raggruppamento AAMI e etichette nel CSV}
+
+Per confrontare i risultati con la letteratura clinica e con lo standard AAMI EC57:2012~\cite{aami2012ec57}, le annotazioni originali del MIT--BIH vengono raggruppate in cinque \textbf{super-classi}, come proposto da de~Chazal et al.~\cite{dechazal2004automatic} e adottato nel Capitolo~\ref{ch:analisi-dei-risultati-e-test}.
+Nel CSV Kaggle, la colonna \texttt{type} adotta una nomenclatura leggermente diversa dalle sigle AAMI letterali, ma con corrispondenza biunivoca (Tabella~\ref{tab:aami-csv-mapping}).
+
+\begin{table}[H]
+  \centering
+  \caption{Corrispondenza tra etichette nel CSV Kaggle e super-classi AAMI.}
+  \label{tab:aami-csv-mapping}
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+    \textbf{CSV (\texttt{type})} & \textbf{AAMI} & \textbf{Significato} \\
+    \midrule
+    N    & N & Normale \\
+    SVEB & S & Ectopia supraventricolare \\
+    VEB  & V & Ectopia ventricolare \\
+    F    & F & Fusione \\
+    Q    & Q & Non classificabile \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{table}[H]
+  \centering
+  \caption{Raggruppamento AAMI delle annotazioni MIT--BIH (sintesi del contenuto clinico).}
+  \label{tab:aami-mapping}
+  \begin{tabular}{@{}clp{7.5cm}@{}}
+    \toprule
+    \textbf{Classe} & \textbf{Sigla} & \textbf{Contenuto tipico} \\
+    \midrule
+    N & Normale & Battiti sinusali, blocchi di branca sinistro (L), blocchi di branca destro (R) \\
+    S & Supraventricolare & Ectopie atriali (A), aberranti (a), nodali (J), ritmi supraventricolari \\
+    V & Ventricolare & Contrazioni premature ventricolari (V), ectopie ventricolari (E) \\
+    F & Fusion & Battiti di fusione (F) \\
+    Q & Unknown & Non classificabili, rumore marcato (/), altre etichette non mappate \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+La Tabella~\ref{tab:aami-mapping} non esaurisce ogni codice del database, ma fissa il vocabolario con cui si discutono metriche e errori clinici nel resto della tesi.
+Lo \texttt{StringIndexer} di Spark ML indicizza i valori testuali effettivi (\texttt{N}, \texttt{SVEB}, \texttt{VEB}, \texttt{F}, \texttt{Q}) senza rinomina esplicita verso le sigle AAMI: la mappatura resta a carico dell'analisi dei risultati.
+
+\begin{table}[H]
+  \centering
+  \caption{Feature per derivazione nel CSV \texttt{MIT-BIH Arrhythmia Database.csv} (prefisso \texttt{0\_} o \texttt{1\_}).}
+  \label{tab:csv-schema}
+  \begin{tabular}{@{}lp{8.5cm}@{}}
+    \toprule
+    \textbf{Suffisso colonna} & \textbf{Contenuto} \\
+    \midrule
+    \texttt{pre-RR}, \texttt{post-RR} & Intervalli R--R precedente e successivo (ms) \\
+    \texttt{pPeak} \ldots \texttt{tPeak} & Ampiezze onde P, Q, R, S, T \\
+    \texttt{pq\_interval}, \texttt{qrs\_interval}, \texttt{st\_interval}, \texttt{qt\_interval} & Durate intervalli/segm.\ (ms) \\
+    \texttt{qrs\_morph0}--\texttt{qrs\_morph4} & Descrittori morfologici del complesso QRS \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Sbilanciamento tra classi}
+
+La distribuzione dei battiti nel file \texttt{MIT-BIH Arrhythmia Database.csv} è fortemente \emph{sbilanciata} (conteggi assoluti sul corpus completo):
+N 90\,083 (89{,}5\%), VEB 7\,009 (7{,}0\%), SVEB 2\,779 (2{,}8\%), F 803 (0{,}8\%), Q 15 ($<$0{,}1\%).
+Tale proporzione riflette la prevalenza clinica dei ritmi normali in registrazioni ambulatoriali selezionate, ma penalizza i modelli che ottimizzano l'accuratezza globale senza pesi per classe.
+
+Durante l'addestramento si possono considerare \textbf{class weighting}, undersampling della classe maggioritaria o oversampling sintetico delle minoritarie; ciascuna strategia introduce trade-off (perdita di informazione, rischio di overfitting sulle classi rare, tempi di training più lunghi).
+Nel prototipo attuale non è implementato alcun ribilanciamento esplicito: la scelta è coerente con l'obiettivo di dimostrare l'architettura end-to-end, ma va tenuta presente nell'interpretazione delle metriche del Capitolo~\ref{ch:analisi-dei-risultati-e-test}.
+
+Dal punto di vista sperimentale, il MIT--BIH offre un compromesso favorevole tra complessità e riproducibilità: registrazioni sufficientemente eterogenee per stressare la pipeline, ma di dimensione gestibile in un contesto accademico in cui l'obiettivo principale non è il record di performance isolato, bensì la validazione di un flusso integrato dal dato storico allo streaming.
 
 \subsection{Tipologie di anomalie contenute e limiti}\label{subsec:tipologie-di-anomalie}
-Le annotazioni del MIT--BIH includono un insieme \emph{variegato} di eventi cardiaci, in particolare \textbf{ectopie ventricolari} (PVC), alterazioni di conduzione (es. blocchi di branca) e battiti supraventricolari annotati quando presenti.
-In alcune tracce sono presenti anche eventi più rari o forme di rumore che possono influenzare la fase di segmentazione.
 
-Tuttavia, il dataset non è esaustivo rispetto a tutte le condizioni cliniche: alcune aritmie rare o stati come la fibrillazione atriale cronica potrebbero essere sottorappresentati.
-Per questo motivo la \emph{generalizzabilità} dei risultati a popolazioni cliniche differenti richiede attenzione e, idealmente, validazione su dataset complementari.
+Le annotazioni includono ectopie ventricolari (PVC), alterazioni di conduzione, battiti supraventricolari e, in alcune tracce, eventi rari o tratti rumorosi che mettono alla prova la segmentazione.
+Il database non copre tutte le condizioni cliniche: aritmie prolungate come la fibrillazione atriale persistente o pattern legati a insufficienza cardiaca avanzata possono essere sottorappresentati.
 
-Dal punto di vista di un classificatore supervisionato, la presenza di classi eterogenee e di segnali di qualità non uniforme obbliga a definire in modo rigoroso la catena di preprocessing.
-La qualità finale del modello dipende infatti non solo dall'algoritmo di apprendimento, ma anche dalla coerenza fra annotazioni, segmentazione e rappresentazione delle feature.
+La \emph{generalizzabilità} verso altre popolazioni (età, sesso, patologia, dispositivo di acquisizione) non va assunta per default.
+I pazienti del MIT--BIH sono in gran parte adulti ricoverati o in follow-up cardiologico negli Stati Uniti della fine degli anni Settanta; un modello addestrato solo su questa distribuzione può degradare su cohort europee, pediatriche o su segnali da wearable consumer con banda e rumore differenti.
+
+Per un classificatore supervisionato, la coerenza tra annotazioni, segmentazione e feature è tanto importante quanto l'algoritmo di apprendimento: errori a monte si propagano come etichette rumorose o descrittori distorti, limitando il soffitto di performance raggiungibile anche con modelli più complessi.
 
 \section{Edge Computing e ruolo del simulatore}\label{sec:edge-computing}
-Nel contesto operativo reale, la raccolta dei segnali ECG e la prima fase di feature engineering possono essere eseguite su dispositivi edge (\textbf{wearable}, edge nodes, gateway), riducendo latenza e uso di banda e preservando la privacy dei dati sensibili.
 
-L'approccio edge implica i seguenti \textbf{vantaggi} e \textbf{vincoli}:
-
+Nel monitoraggio cardiaco continuo, la posizione dell'elaborazione lungo il percorso dato--cloud non è banale.
+Si distinguono almeno tre livelli~\cite{kleppmann2017designing}:
 \begin{itemize}
-  \item \emph{Riduzione del traffico di rete}: inviando solo feature o eventi rilevati anziché il flusso raw, con conseguente risparmio energetico e miglioramento della scalabilità della soluzione di ingestion.
-  \item \emph{Trade-off computazionali}: l'esecuzione di algoritmi di signal processing su device a risorse limitate richiede ottimizzazioni e compromessi su accuratezza e consumo energetico.
-  \item \emph{Considerazioni di privacy e compliance}: l'elaborazione edge consente di limitare la trasmissione dei dati raw e di applicare policy di anonimizzazione o aggregazione prima dell'invio al broker.
+  \item \textbf{Cloud}: capacità computazionale elevata, storage centralizzato, latenza di rete non trascurabile;
+  \item \textbf{Fog}: nodi intermedi (ospedale, edge data center) che aggregano flussi da più dispositivi;
+  \item \textbf{Edge}: elaborazione sul wearable, sul Holter o sul gateway domestico, a ridosso del sensore.
 \end{itemize}
 
-Nel repository il componente \texttt{EcgPatientSimulator} funge da \textbf{generatore mock} per la pipeline di ingestion: esso trasforma porzioni annotate del MIT--BIH in payload JSON pubblicati sul topic \texttt{ecg-input-stream}.
-Questa scelta permette di testare la pipeline end-to-end in ambiente controllato; in un deployment reale il simulatore sarebbe rimpiazzato da un modulo edge che esegue feature extraction e pubblica i risultati al broker.
+Per l'ECG, spostare filtraggio, QRS detection e estrazione delle feature verso l'edge risponde a tre esigenze concrete: ridurre la latenza tra evento cardiaco e allarme; diminuire il traffico (un battito con 32 feature numeriche occupa ordini di grandezza in meno di un secondo di segnale a 360~Hz); limitare l'esposizione di dati biometrici raw oltre il perimetro controllato del paziente.
 
-Il simulatore svolge quindi una \emph{funzione metodologica}, perché consente di avvicinare il comportamento del sistema a uno scenario reale senza introdurre dipendenze hardware o complessità operative non necessarie alla fase sperimentale.
+Dispositivi come Holter multicanale, patch ECG monouso e braccialetti con singola derivazione implementano già, in parte, questa logica: acquisiscono a alta frequenza localmente, poi trasmettono riassunti, eventi o tratti selezionati.
+Il progetto di tesi non dispone di hardware dedicato; il componente \texttt{EcgPatientSimulator} emula il comportamento di un producer edge che pubblica feature già calcolate sul topic Kafka \texttt{ecg-input-stream}, in formato JSON.
 
-L'adozione di un simulatore facilita inoltre la \emph{riproducibilità degli esperimenti}: le sequenze di eventi possono essere reintrodotte più volte, con la stessa logica di generazione, al fine di confrontare diverse configurazioni del classificatore e del livello streaming.
-In questo modo il progetto conserva un carattere sperimentale rigoroso pur rimanendo aderente a una possibile evoluzione industriale.
+\subsection{Funzione metodologica del simulatore}
+
+Il simulatore consente di esercitare la pipeline end-to-end in laboratorio: stesso schema colonne del CSV di training, stesso topic, stesso consumer Spark, senza dipendenze da firmware o protocolli proprietari.
+In uno scenario operativo, lo sostituirebbe un modulo on-device (o un gateway) con \texttt{KafkaProducer} o equivalente MQTT verso il broker.
+
+L'approccio edge comporta vincoli noti: CPU e memoria limitate, consumo energetico, necessità di aggiornare modelli e soglie senza interrompere l'acquisizione.
+Per la tesi, questi aspetti restano fuori dall'implementazione, ma orientano le scelte architetturali del Capitolo~\ref{ch:progettazione-e-architettura-del-sistema} (payload compatto, disaccoppiamento tramite Kafka, training batch separato dall'inferenza streaming).
+
+La riproducibilità degli esperimenti ne beneficia: la sequenza di messaggi può essere rigenerata con la stessa logica (\texttt{limit(1000)}, intervallo di un secondo), permettendo confronti tra configurazioni del predictor o del checkpoint senza variabilità legata a dispositivi reali.
+
+\subsection{Scenario evolutivo: digital twin}
+
+A orizzonte più ampio, i flussi ECG da molteplici fonti potrebbero alimentare un \emph{digital twin} cardiaco del paziente: modello che integra storico clinico, eventi in tempo quasi reale e predizioni per simulare risposte a terapie o per prioritizzare alert.
+Il prototipo descritto in questa tesi costituisce un mattone elementare di tale visione---ingestion, classificazione, persistenza versionata---senza pretendere di realizzarne la complessità clinica e regolatoria.
 
 \section{Considerazioni etiche e implicazioni cliniche}\label{sec:considerazioni-etiche-e-implicazioni-cliniche}
-Nell'applicazione di modelli ML a dati clinici è necessario considerare l'impatto di \textbf{falsi negativi} e \textbf{falsi positivi}.
-In un contesto di monitoraggio continuo, un falso negativo (mancata identificazione di un evento patologico) può avere conseguenze cliniche gravi; pertanto nella fase di valutazione si presta particolare attenzione a metriche che riflettano \emph{sensibilità} e \emph{specificità}, non limitandosi esclusivamente all'accuratezza globale.
 
-Il problema non è soltanto statistico, ma anche operativo: il sistema deve produrre un output compatibile con i vincoli di sorveglianza e con i tempi di reazione richiesti dal contesto clinico.
+Nell'applicazione di modelli ML a dati clinici, l'impatto di \textbf{falsi negativi} e \textbf{falsi positivi} va valutato prima delle metriche aggregate.
+Un falso negativo su una ectopia ventricolare ripetuta può ritardare un intervento; un falso positivo aumenta il carico di revisione per il personale e, nel lungo periodo, riduce la fiducia nel sistema di alert.
 
-Inoltre, si sottolinea l'importanza della \textbf{validazione clinica esterna} e dell'\emph{interpretabilità} del modello come prerequisiti per un'adozione in ambito sanitario.
-Una soluzione predittiva usata in scenari reali dovrebbe essere sottoposta a verifica su popolazioni diverse, con protocolli di valutazione che considerino distribuzioni di pazienti, device e condizioni di acquisizione non necessariamente coincidenti con quelle del dataset di riferimento.
+Il problema è dunque operativo oltre che statistico: output, latenza e priorità degli allarmi devono essere allineati al contesto (telemetria domiciliare, reparto, terapia intensiva), dove i trade-off tra sensibilità e specificità non coincidono.
+
+\paragraph{Quadro regolatorio.}
+In Europa, software destinato a finalità mediche può rientrare nel campo del Regolamento (UE) 2017/745 sui dispositivi medici (MDR)~\cite{eu2017mdr}.
+I sistemi di supporto alla diagnosi basati su algoritmi---spesso indicati come \emph{Software as a Medical Device} (SaMD)---richiedono gestione del rischio, tracciabilità, validazione clinica e monitoraggio post-market.
+Il prototipo di questa tesi non è certificato né destinato all'uso clinico; le considerazioni regolatorie servono a inquadrare il divario tra dimostrazione accademica e prodotto deployabile.
+
+\paragraph{Validazione, interpretabilità e bias.}
+Un'adozione responsabile presuppone validazione su popolazioni e dispositivi diversi da quelli del training, documentazione delle prestazioni per sottogruppo e strumenti di interpretabilità (importanza delle feature, analisi degli errori per classe AAMI).
+Il MIT--BIH, per quanto prezioso, introduce \emph{bias} demografico e tecnologico: campione storico, non necessariamente rappresentativo dell'utenza attuale né delle acquisizioni da wearable.
+
+Infine, la pipeline deve essere leggibile da chi risponde dei dati: finalità del trattamento, minimizzazione (feature anziché raw dove possibile), retention su Delta Lake e accessi al broker vanno progettati con pari attenzione rispetto all'accuratezza del classificatore.
+Senza questi accorgimenti, anche un modello accurato resterebbe confinato al laboratorio.
