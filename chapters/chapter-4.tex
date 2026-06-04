@@ -37,6 +37,65 @@ La configurazione hardcoded è un limite riconosciuto del prototipo.
 In un'evoluzione produttiva, i path e gli endpoint andrebbero esternalizzati tramite Typesafe Config (HOCON), variabili d'ambiente o un servizio di configurazione centralizzato.
 Il path del dataset punta a un percorso assoluto Linux (\texttt{/home/andrea/data/ecg/*.csv}): su Windows o macOS va adattato manualmente prima dell'esecuzione.
 
+\section{Build e gestione delle dipendenze}\label{sec:build-sbt}
+
+Il progetto è gestito con \textbf{SBT 1.12.4} e Scala \textbf{2.13.18}.
+Il file \texttt{build.sbt} fissa le versioni dello stack analitico:
+
+\begin{lstlisting}[language=Scala,caption={Dipendenze principali in \texttt{build.sbt}.},label={lst:build-sbt}]
+val sparkVersion = "4.1.1"
+val deltaVersion = "4.1.0"
+
+libraryDependencies ++= Seq(
+  "org.apache.spark" %% "spark-core" % sparkVersion,
+  "org.apache.spark" %% "spark-sql" % sparkVersion,
+  "org.apache.spark" %% "spark-mllib" % sparkVersion,
+  "org.apache.spark" %% "spark-sql-kafka-0-10" % sparkVersion,
+  "io.delta" %% "delta-spark" % deltaVersion,
+)
+\end{lstlisting}
+
+Spark e Delta condividono la stessa release train (4.1.x): questo riduce incompatibilità tra catalogo Delta e runtime SQL.
+Il connettore \texttt{spark-sql-kafka-0-10} è allineato alla versione Spark, requisito per Structured Streaming su Kafka.
+Non sono presenti dipendenze di test (\texttt{scalatest}) né plugin di packaging (\texttt{sbt-assembly}): coerente con un prototipo didattico, ma limitante per CI automatizzata.
+
+\texttt{idePackagePrefix := Some("it.utiu.thesis")} imposta il package root per l'IDE senza alterare la struttura delle directory sotto \texttt{src/main/scala/}.
+
+\section{Infrastruttura Docker e broker Kafka}\label{sec:docker-kafka}
+
+Kafka è avviato tramite \texttt{docker-compose.yml} con immagine \texttt{apache/kafka:latest} in modalità \textbf{KRaft} su un singolo nodo (\texttt{broker,controller}).
+I parametri salienti sono:
+\texttt{KAFKA\_CONTROLLER\_QUORUM\_VOTERS=1@localhost:9093},
+\texttt{KAFKA\_OFFSETS\_TOPIC\_REPLICATION\_FACTOR=1},
+listener \texttt{PLAINTEXT} su porta \texttt{9092}.
+
+In laboratorio questo basta a esercitare producer e consumer locali.
+In produzione servirebbero almeno tre broker, replication factor $\geq 3$ e separazione dei ruoli controller/broker; altrimenti un guasto al container interrompe l'intera ingestion.
+
+Spark non è containerizzato: gira sulla JVM host con \texttt{local[*]}.
+La scelta semplifica il debug (log unificati, Spark UI su \texttt{4040}) a scapito del disaccoppiamento infrastrutturale tipico dei deployment cloud-native.
+
+\section{Configurazione \texttt{SparkSession}}\label{sec:spark-session-config}
+
+Trainer, predictor e simulatore creano ciascuno una propria \texttt{SparkSession}, ripetendo la stessa configurazione Delta:
+
+\begin{lstlisting}[language=Scala,caption={Configurazione comune della sessione Spark.},label={lst:spark-session}]
+SparkSession.builder()
+  .appName("EcgModelTrainer")  // o EcgStreamingPredictor / EcgPatientSimulator
+  .master(Config.SPARK_MASTER)
+  .config("spark.driver.host", "127.0.0.1")
+  .config("spark.driver.bindAddress", "127.0.0.1")
+  .config("spark.sql.extensions",
+    "io.delta.sql.DeltaSparkSessionExtension")
+  .config("spark.sql.catalog.spark_catalog",
+    "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+  .getOrCreate()
+\end{lstlisting}
+
+\texttt{SPARK\_MASTER = "local[*]"} assegna tutti i core della macchina a un unico executor logico: adeguato per $\sim$100\,000 righe CSV e micro-batch piccoli, insufficiente per carichi multi-paziente senza cluster.
+
+Parametri di tuning non sono stati variati (\texttt{spark.sql.shuffle.partitions}, memoria driver/executor): su dataset tabellari di questa dimensione i default Spark 4.x sono generalmente sufficienti; su cluster andrebbero calibrati in funzione del numero di partizioni Kafka e della cardinalità del modello.
+
 \section{Data pipeline e machine learning}\label{sec:data-pipeline-ml}
 
 \subsection{Preprocessing e feature engineering}\label{subsec:preprocessing-fe}
@@ -218,6 +277,24 @@ Exactly-once a livello di micro-batch si ottiene dalla combinazione:
   \item restart che riprende dall'ultimo checkpoint senza riprocessare batch già committati.
 \end{itemize}
 
+\subsection{\texttt{foreachBatch} rispetto al sink Delta nativo}\label{subsec:foreach-vs-delta}
+
+Structured Streaming supporta anche:
+
+\begin{lstlisting}[language=Scala,caption={Alternativa dichiarativa (non usata nel prototipo).}]
+finalStreamDF.writeStream
+  .format("delta")
+  .outputMode("append")
+  .option("checkpointLocation", checkpointPath)
+  .start(deltaPath)
+\end{lstlisting}
+
+Nel progetto si è scelto \texttt{foreachBatch} per poter eseguire \texttt{persist}, \texttt{isEmpty}, \texttt{show} e logging condizionale prima della scrittura.
+Il costo è codice imperativo aggiuntivo e responsabilità di gestione errori spostata sull'applicazione: un'eccezione nel batch non committato non avanza gli offset Kafka.
+
+Il sink nativo Delta è preferibile quando la logica per batch è banale (append puro) e si vuole delegare a Spark la massima ottimizzazione del writer.
+Per audit clinico con campionamento delle predizioni in console, \texttt{foreachBatch} resta la scelta più trasparente in fase di prototipazione.
+
 \section{Storage e sink: Delta Lake}\label{sec:storage-delta}
 
 \subsection{Configurazione sink}
@@ -300,6 +377,35 @@ L'attesa di 15 secondi prima del simulatore è una euristica fragile: un health-
 \texttt{AppRunner} stampa un banner testuale all'avvio (\texttt{ECG STREAMING CLASSIFIER - BIG DATA PIPELINE}).
 Funge da indicatore visivo in console, senza impatto funzionale sulla pipeline.
 
+\section{Gestione errori e resilienza}\label{sec:error-handling}
+
+Il codice attuale adotta un modello \emph{fail-fast} senza recovery applicativo esplicito.
+Se Kafka non è raggiungibile, \texttt{readStream} fallisce all'avvio del predictor; se il modello manca, \texttt{AppRunner} avvia il trainer, ma non gestisce errori di I/O sul CSV.
+
+\texttt{setHandleInvalid("keep")} su \texttt{StringIndexer} e \texttt{VectorAssembler} evita eccezioni su valori mancanti, producendo però predizioni su bucket ``sconosciuto'' difficili da interpretare clinicamente.
+Una variante più sicura filtrerebbe a monte i battiti incompleti o li instraderebbe su un topic di quarantena.
+
+Il simulatore invoca \texttt{producer.send} senza callback né \texttt{flush()}: in caso di back-pressure del broker, i messaggi potrebbero restare nel buffer del client senza segnalazione immediata.
+
+Estensioni non implementate ma rilevanti includono: \emph{dead letter queue} per JSON non parsabili; \emph{circuit breaker} sul producer; \texttt{graceful shutdown} con \texttt{query.stop()} e timeout sul join del thread predictor.
+
+\section{Strategie di testing}\label{sec:testing}
+
+Il repository non contiene test automatici.
+In un contesto Big Data, la verifica richiede comunque livelli distinti:
+
+\paragraph{Test unitari.}
+Funzioni pure (selezione \texttt{featureCols}, trasformazioni su piccoli \texttt{DataFrame} in memoria) possono usare \texttt{SparkSession} con \texttt{master("local[1]")} e dati sintetici di poche righe.
+
+\paragraph{Test di integrazione.}
+Kafka embedded o Testcontainers permetterebbero di pubblicare JSON campione e verificare che \texttt{from\_json} + \texttt{transform} producano colonne attese.
+Il checkpoint andrebbe isolato in directory temporanee per non inquinare run successivi.
+
+\paragraph{Test end-to-end.}
+Ripetere \texttt{AppRunner} con dataset ridotto e confrontare conteggio righe Delta rispetto ai messaggi prodotti verifica il percorso completo, ma resta fragile per tempi di startup e dipendenza da Docker.
+
+L'assenza di test è stata accettata per concentrare lo sforzo sull'integrazione tecnologica; in un percorso verso produzione, almeno test su parsing JSON e su consistenza schema CSV/Kafka sarebbero il primo investimento consigliato.
+
 \section{Riepilogo implementativo}
 
 La Tabella~\ref{tab:componenti-implementazione} collega ogni componente alle scelte implementative salienti.
@@ -308,17 +414,20 @@ La Tabella~\ref{tab:componenti-implementazione} collega ogni componente alle sce
   \centering
   \caption{Riepilogo componenti e scelte implementative.}
   \label{tab:componenti-implementazione}
-  \begin{tabular}{@{}p{3.2cm}p{4.5cm}p{5cm}@{}}
+  \footnotesize
+  \begin{tabular}{@{}p{2.6cm}p{4.2cm}p{4.8cm}@{}}
     \toprule
     \textbf{Componente} & \textbf{File} & \textbf{Scelta chiave} \\
     \midrule
-    Orchestratore & \texttt{AppRunner.scala} & Thread demone + sleep 15s \\
-    Trainer & \texttt{EcgModelTrainer.scala} & Pipeline ML, RF 100/15, seed 42 \\
-    Simulatore & \texttt{EcgPatientSimulator.scala} & KafkaProducer, 1000 msg, 1 msg/s \\
-    Predictor & \texttt{EcgStreamingPredictor.scala} & from\_json, foreachBatch, Delta \\
-    Config & \texttt{Config.scala} & Path hardcoded, local[*] \\
+    Orchestratore & \texttt{AppRunner.scala} & Thread demone, sleep 15s \\
+    Trainer & \texttt{EcgModelTrainer.scala} & Pipeline ML, RF 100/15 \\
+    Simulatore & \texttt{EcgPatientSimulator.scala} & KafkaProducer, 1 msg/s \\
+    Predictor & \texttt{EcgStreaming\-Predictor.scala} & \texttt{from\_json}, \texttt{foreachBatch} \\
+    Config & \texttt{Config.scala} & Path hardcoded, \texttt{local[*]} \\
+    Build & \texttt{build.sbt} & Spark 4.1.1, Delta 4.1.0 \\
+    Infra & \texttt{docker-compose.yml} & Kafka KRaft single-node \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-Il capitolo successivo presenta i risultati sperimentali derivati da questa implementazione, con metriche di classificazione e misure di latenza e throughput.
+Nel capitolo seguente si riportano metriche di classificazione, latenza e throughput ottenuti eseguendo questa implementazione.

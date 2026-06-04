@@ -20,6 +20,16 @@
 \usepackage{booktabs}
 \usepackage{longtable}
 \usepackage{pgfplots}
+\usepackage{microtype}
+\usepackage[htt]{hyphenat}
+\usepackage{siunitx}
+\sisetup{detect-all,per-mode=symbol}
+\usepackage{seqsplit}
+\sloppy
+
+\hyphenation{Struc-tu-red Stre-aming clas-si-fi-ca-zione
+  su-pra-ven-tri-co-lare ven-tri-co-lare
+  Mul-ti-class Clas-si-fi-ca-tion}
 
 \lstdefinelanguage{Scala}{
   morekeywords={abstract,case,catch,class,def,do,else,extends,false,final,finally,for,forSome,if,implicit,import,lazy,match,new,null,object,override,package,private,protected,return,sealed,super,this,throw,trait,true,try,type,val,var,while,with,yield,Array,Boolean,Byte,Char,Double,Float,Int,Long,Short,String,Unit,println,Unit},
@@ -114,17 +124,17 @@
     \label{ch:progettazione-e-architettura-del-sistema}
     \input{chapters/chapter-3}
 
-%   \chapter[Implementazione e Dettagli Tecnici]{Implementazione e Dettagli Tecnici}
-%   \label{ch:implementazione-e-dettagli-tecnici}
-%   \input{chapters/chapter-4}
-%
-%   \chapter[Analisi dei Risultati e Test]{Analisi dei Risultati e Test}
-%   \label{ch:analisi-dei-risultati-e-test}
-%   \input{chapters/chapter-5}
-%
-%   \chapter[Conclusioni]{Conclusioni}
-%   \label{ch:conclusioni}
-%   \input{chapters/conclusion}
+    \chapter[Implementazione e Dettagli Tecnici]{Implementazione e Dettagli Tecnici}
+    \label{ch:implementazione-e-dettagli-tecnici}
+    \input{chapters/chapter-4}
+
+    \chapter[Analisi dei Risultati e Test]{Analisi dei Risultati e Test}
+    \label{ch:analisi-dei-risultati-e-test}
+    \input{chapters/chapter-5}
+
+    \chapter[Conclusioni]{Conclusioni}
+    \label{ch:conclusioni}
+    \input{chapters/conclusion}
 
     \newpage
     \printbibliography

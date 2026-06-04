@@ -16,78 +16,64 @@ Tra questi deflessi si misurano il \textbf{segmento PR} (conduzione atrioventric
 La Figura~\ref{fig:ecg-morfologia} sintetizza, in forma schematica, la relazione tra fasi elettriche e morfologia osservabile.
 In applicazioni automatiche, la forma locale del QRS e la durata degli intervalli costituiscono descrittori ad alta densità informativa per la distinzione tra battiti normali e patologici~\cite{dechazal2004automatic}.
 
-% \begin{figure}[H]
-%   \centering
-%   \begin{tikzpicture}[
-%     x=0.95cm, y=0.95cm,
-%     >=Stealth,
-%     wave/.style={line width=1.2pt, black},
-%     guide/.style={dashed, gray!55, line width=0.4pt},
-%     brace/.style={thick, black},
-%     lbl/.style={font=\small},
-%     dist/.style={font=\footnotesize}
-%   ]
-%     % --- assi ---
-%     \draw[->] (-0.15,0) -- (11.5,0) node[below, font=\footnotesize] {tempo};
-%     \draw[->] (0,-0.95) -- (0,1.55) node[left, font=\footnotesize, rotate=90, anchor=south] {ampiezza};
-% 
-%     % --- tracciato (coordinate fisse per allineare annotazioni) ---
-%     \coordinate (Pon)  at (0.9,0);
-%     \coordinate (Ppk)  at (1.35,0.24);
-%     \coordinate (Poff) at (2.05,0);
-%     \coordinate (Qon)  at (3.5,0);
-%     \coordinate (Qpk)  at (3.65,-0.17);
-%     \coordinate (Rpk)  at (4.15,1.08);
-%     \coordinate (Spk)  at (4.55,-0.26);
-%     \coordinate (Jpt)  at (4.95,0);    % fine QRS / inizio ST
-%     \coordinate (Ton)  at (5.85,0);
-%     \coordinate (Tpk)  at (7.0,0.36);
-%     \coordinate (Toff) at (8.75,0);
-% 
-%     \draw[wave]
-%       (0,0) -- (Pon)
-%       .. controls (1.05,0.04) and (1.15,0.24) .. (Ppk)
-%       .. controls (1.55,0.24) and (1.75,0.04) .. (Poff)
-%       -- (Qon)
-%       -- (Qpk) -- (Rpk) -- (Spk) -- (Jpt)
-%       -- (Ton)
-%       .. controls (6.2,0.06) and (6.6,0.38) .. (Tpk)
-%       .. controls (7.4,0.38) and (8.2,0.06) .. (Toff)
-%       -- (10.2,0);
-% 
-%     % --- etichette deflessioni (senza sovrapporre le frecce degli intervalli) ---
-%     \node[lbl] at (Ppk)  [above=3pt] {P};
-%     \node[lbl] at (Rpk)  [above=3pt] {R};
-%     \node[lbl] at (Tpk)  [above=3pt] {T};
-%     \node[lbl, anchor=east]  at ([xshift=-2pt]Qpk) {Q};
-%     \node[lbl, anchor=west]  at ([xshift= 2pt]Spk) {S};
-% 
-%     % --- PR (sopra il tracciato) ---
-%     \def\yPR{1.38}
-%     \draw[guide] (Pon)  -- (Pon |- 0,\yPR);
-%     \draw[guide] (Qon)  -- (Qon |- 0,\yPR);
-%     \draw[brace, <->] (Pon |- 0,\yPR) -- node[above=4pt, dist] {PR} (Qon |- 0,\yPR);
-% 
-%     % --- durata QRS (sopra il complesso, tra inizio Q e punto J) ---
-%     \def\yQRS{1.12}
-%     \draw[guide] (Qon) -- (Qon |- 0,\yQRS);
-%     \draw[guide] (Jpt) -- (Jpt |- 0,\yQRS);
-%     \draw[brace, <->] (Qon |- 0,\yQRS) -- node[above=4pt, dist] {QRS} (Jpt |- 0,\yQRS);
-% 
-%     % --- segmento ST (tratto isoelettrico tra J e inizio T) ---
-%     \def\yST{0.20}
-%     \draw[guide] (Jpt |- 0,\yST) -- (Ton |- 0,\yST);
-%     \node[dist, above=2pt] at ($(Jpt)!0.5!(Ton)$) {ST};
-% 
-%     % --- QT (sotto il tracciato, ben separato da Q e S) ---
-%     \def\yQT{-0.72}
-%     \draw[guide] (Qon)  -- (Qon |- 0,\yQT);
-%     \draw[guide] (Toff) -- (Toff |- 0,\yQT);
-%     \draw[brace, <->] (Qon |- 0,\yQT) -- node[below=4pt, dist] {QT} (Toff |- 0,\yQT);
-%   \end{tikzpicture}
-%   \caption{Morfologia schematica di un battito ECG in ritmo sinusale: deflessioni P, Q, R, S e T; intervalli PR e QT; durata del complesso QRS; segmento ST.}
-%   \label{fig:ecg-morfologia}
-% \end{figure}
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+    x=0.95cm, y=0.95cm,
+    >=Stealth,
+    wave/.style={line width=1.2pt, black},
+    guide/.style={dashed, gray!55, line width=0.4pt},
+    brace/.style={thick, black},
+    lbl/.style={font=\small},
+    dist/.style={font=\footnotesize}
+  ]
+    \draw[->] (-0.15,0) -- (11.5,0) node[below, font=\footnotesize] {tempo};
+    \draw[->] (0,-0.95) -- (0,1.55) node[left, font=\footnotesize, rotate=90, anchor=south] {ampiezza};
+    \coordinate (Pon)  at (0.9,0);
+    \coordinate (Ppk)  at (1.35,0.24);
+    \coordinate (Poff) at (2.05,0);
+    \coordinate (Qon)  at (3.5,0);
+    \coordinate (Qpk)  at (3.65,-0.17);
+    \coordinate (Rpk)  at (4.15,1.08);
+    \coordinate (Spk)  at (4.55,-0.26);
+    \coordinate (Jpt)  at (4.95,0);
+    \coordinate (Ton)  at (5.85,0);
+    \coordinate (Tpk)  at (7.0,0.36);
+    \coordinate (Toff) at (8.75,0);
+    \draw[wave]
+      (0,0) -- (Pon)
+      .. controls (1.05,0.04) and (1.15,0.24) .. (Ppk)
+      .. controls (1.55,0.24) and (1.75,0.04) .. (Poff)
+      -- (Qon)
+      -- (Qpk) -- (Rpk) -- (Spk) -- (Jpt)
+      -- (Ton)
+      .. controls (6.2,0.06) and (6.6,0.38) .. (Tpk)
+      .. controls (7.4,0.38) and (8.2,0.06) .. (Toff)
+      -- (10.2,0);
+    \node[lbl] at (Ppk)  [above=3pt] {P};
+    \node[lbl] at (Rpk)  [above=3pt] {R};
+    \node[lbl] at (Tpk)  [above=3pt] {T};
+    \node[lbl, anchor=east]  at ([xshift=-2pt]Qpk) {Q};
+    \node[lbl, anchor=west]  at ([xshift= 2pt]Spk) {S};
+    \def\yPR{1.38}
+    \draw[guide] (Pon)  -- (Pon |- 0,\yPR);
+    \draw[guide] (Qon)  -- (Qon |- 0,\yPR);
+    \draw[brace, <->] (Pon |- 0,\yPR) -- node[above=4pt, dist] {PR} (Qon |- 0,\yPR);
+    \def\yQRS{1.12}
+    \draw[guide] (Qon) -- (Qon |- 0,\yQRS);
+    \draw[guide] (Jpt) -- (Jpt |- 0,\yQRS);
+    \draw[brace, <->] (Qon |- 0,\yQRS) -- node[above=4pt, dist] {QRS} (Jpt |- 0,\yQRS);
+    \def\yST{0.20}
+    \draw[guide] (Jpt |- 0,\yST) -- (Ton |- 0,\yST);
+    \node[dist, above=2pt] at ($(Jpt)!0.5!(Ton)$) {ST};
+    \def\yQT{-0.72}
+    \draw[guide] (Qon)  -- (Qon |- 0,\yQT);
+    \draw[guide] (Toff) -- (Toff |- 0,\yQT);
+    \draw[brace, <->] (Qon |- 0,\yQT) -- node[below=4pt, dist] {QT} (Toff |- 0,\yQT);
+  \end{tikzpicture}
+  \caption{Morfologia schematica di un battito ECG in ritmo sinusale: deflessioni P, Q, R, S e T; intervalli PR e QT; durata del complesso QRS; segmento ST.}
+  \label{fig:ecg-morfologia}
+\end{figure}
 
 Gli \emph{intervalli RR} (distanza temporale tra picchi R consecutivi) sono la misura principale per la frequenza cardiaca e per la \emph{Heart Rate Variability} (HRV).
 In presenza di aritmie, la distribuzione degli RR perde regolarità: ectopie, pause o tachicardie producono sequenze che un classificatore può sfruttare insieme alla morfologia del battito isolato~\cite{taskforce1996hrv,dechazal2004automatic}.
@@ -221,15 +207,15 @@ Lo \texttt{StringIndexer} di Spark ML indicizza i valori testuali effettivi (\te
 
 \begin{table}[H]
   \centering
-  \caption{Feature per derivazione nel CSV \texttt{MIT-BIH Arrhythmia Database.csv} (prefisso \texttt{0\_} o \texttt{1\_}).}
+  \caption{Feature per derivazione nel CSV MIT--BIH (prefissi \texttt{0\_} e \texttt{1\_}).}
   \label{tab:csv-schema}
-  \begin{tabular}{@{}lp{8.5cm}@{}}
+  \begin{tabular}{@{}lp{7.2cm}@{}}
     \toprule
     \textbf{Suffisso colonna} & \textbf{Contenuto} \\
     \midrule
     \texttt{pre-RR}, \texttt{post-RR} & Intervalli R--R precedente e successivo (ms) \\
     \texttt{pPeak} \ldots \texttt{tPeak} & Ampiezze onde P, Q, R, S, T \\
-    \texttt{pq\_interval}, \texttt{qrs\_interval}, \texttt{st\_interval}, \texttt{qt\_interval} & Durate intervalli/segm.\ (ms) \\
+    \texttt{pq\_interval}, \ldots, \texttt{qt\_interval} & Durate PQ, QRS, ST, QT (ms) \\
     \texttt{qrs\_morph0}--\texttt{qrs\_morph4} & Descrittori morfologici del complesso QRS \\
     \bottomrule
   \end{tabular}

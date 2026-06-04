@@ -1,8 +1,7 @@
 \section{Protocollo sperimentale}\label{sec:protocollo-sperimentale}
 
-Questa sezione descrive il setup utilizzato per valutare la pipeline e il modello di classificazione.
-I risultati numerici riportati nelle sezioni successive sono \textbf{stimati} sulla base della letteratura MIT-BIH e di run preliminari non ancora consolidati.
-Ogni valore provvisorio è contrassegnato con la nota \footnotemark{} e un commento \texttt{\% TODO} nel sorgente LaTeX, da sostituire con misure effettive al termine delle campagne sperimentali definitive.
+Questa sezione fissa il setup sperimentale.
+I numeri nelle tabelle e nel grafico sono \textbf{provvisori}: vanno sostituiti con l'output di \texttt{EcgModelTrainer} e \texttt{EcgStreamingPredictor} dopo le run definitive (nel sorgente LaTeX restano marcatori \texttt{\% TODO}).
 
 \footnotetext{Valori provvisori: da sostituire con output reali di \texttt{EcgModelTrainer} e \texttt{EcgStreamingPredictor}.}
 
@@ -117,24 +116,48 @@ Per questo motivo l'analisi privilegia recall e F1 sulle classi V e S.
 
 \section{Analisi degli errori e impatto clinico}\label{sec:analisi-errori}
 
+Le metriche numeriche del Capitolo~\ref{sec:performance-modello} vanno lette insieme al contesto d'uso.
+Un classificatore automatico di battiti non sostituisce il clinico: funge da \emph{supporto decisionale} che prioritizza eventi da rivedere, riducendo il tempo di screening su tracce lunghe.
+
+\subsection{Scenari operativi e sensibilità richiesta}
+
+\paragraph{Monitoraggio post-infarto in reparto.}
+Dopo un evento ischemico, la ricorrenza di ectopie ventricolari (classe V) può anticipare aritmie più gravi.
+Qui conta la \textbf{recall} sulla classe V: un falso negativo su una PVC isolata può essere accettabile, meno su raffiche ripetute non segnalate.
+% TODO: calcolare FN rate reale su classe V
+Con recall dell'89,1\% sulla classe V (valore provvisorio), circa una PVC su dieci non viene rilevata dal modello.
+
+\paragraph{Holter ambulatoriale e telemetria domiciliare.}
+Il paziente porta il dispositivo per 24--48 ore; il personale analizza offline migliaia di battiti.
+In questo scenario, \textbf{falsi positivi} aumentano il carico di revisione e possono indurre abbandono del servizio da parte del paziente.
+Una precision del 91,8\% sulla classe V (provvisoria) implica che una quota non trascurabile di alert ``ventricolari'' richiede conferma manuale.
+
+\paragraph{Pronto soccorso e triage.}
+La latenza sub-secondo della pipeline (Tabella~\ref{tab:latenza}) è compatibile con un flusso \emph{near-real-time}, ma il prototipo non integra workflow di alert verso il personale.
+L'obiettivo sarebbe evidenziare subito tratti ad alto rischio (es.\ sequenze V consecutive, pause RR), non solo classificare battito per battito.
+
+\subsection{Allineamento con AAMI EC57 e sbilanciamento del dataset}
+
+Lo standard AAMI EC57:2012~\cite{aami2012ec57} definisce criteri di test per algoritmi di misura ritmica; in letteratura, le valutazioni sul MIT--BIH confrontano spesso sensibilità e specificità per super-classe.
+Il nostro dataset preprocessato è fortemente sbilanciato verso \texttt{N} ($\approx$89,5\% dei battiti): la prevalenza clinica reale in popolazione generale non coincide con quella di un archivio cardiologico storico.
+Un modello ottimizzato solo su questo CSV può \emph{sovrastimare} la performance su ritmo normale e \emph{sottostimare} la robustezza su classi rare (F, Q), proprio dove l'impatto clinico di un errore è meno prevedibile.
+
 \subsection{Falsi negativi sulle ectopie ventricolari}
 
-% TODO: calcolare FN rate reale su classe V
-Con recall del 89,1\% sulla classe V (valore provvisorio), circa 1 PVC ogni 10 non viene rilevata.
-In monitoraggio continuo post-infarto, una PVC non segnalata può essere clinicamente rilevante se ricorrente o se precede aritmie più gravi.
+Oltre alle PVC, errori tra \texttt{SVEB} e \texttt{N} (Figura~\ref{fig:f1-per-classe}) riflettono morfologie simili: il sistema può classificare come normale un battito supraventricolare con QRS stretto.
+In terapia intensiva, ectopie supraventricolari ripetute possono richiedere diversa gestione farmacologica rispetto al ritmo sinusale.
 
-Strategie di mitigazione non implementate nel prototipo ma rilevanti:
+Strategie non implementate nel prototipo ma rilevanti in un'evoluzione clinica:
 \begin{itemize}
   \item \textbf{Cost-sensitive learning}: penalizzare maggiormente errori su classi V e S durante il training.
   \item \textbf{Soglie operative}: abbassare la soglia di decisione per la classe V accettando più falsi positivi.
-  \item \textbf{Ensemble con regole cliniche}: combinare output ML con regole su intervalli RR (es.\ pausa $>$ 2~s).
+  \item \textbf{Regole cliniche ibride}: combinare output ML con vincoli su intervalli RR (es.\ pausa $>$ 2~s) o consecutività di ectopie.
 \end{itemize}
 
 \subsection{Falsi positivi e carico operativo}
 
-Una precision del 91,8\% sulla classe V implica che circa 8\% delle predizioni ``ventricolari'' sono falsi allarmi.
-In un reparto con monitoraggio continuo, questo si traduce in alert da verificare manualmente.
-Il trade-off precision/recall va calibrato sul contesto operativo: telemetria domiciliare tollera meno falsi positivi rispetto a UTI.
+Il trade-off precision/recall non è universale: la telemetria domiciliare privilegia la specificità (meno allarmi notturni inutili), mentre in UTI può prevalere la sensibilità.
+Il prototipo non espone soglie configurabili per classe: usa l'argmax implicito del Random Forest, lasciando al deployment futuro la calibrazione per scenario.
 
 \section{Analisi della latenza}\label{sec:analisi-latenza}
 

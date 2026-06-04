@@ -7,51 +7,53 @@ La forza della Lambda è la correttezza batch su volumi elevati; il costo è la 
 
 L'\textbf{architettura Kappa} propone un unico flusso di eventi: lo speed layer consuma il log; il riprocessamento storico si ottiene rileggendo il topic dall'inizio con job batch-equivalenti.
 Si elimina la duplicazione logica, ma servono formati immutabili, retention adeguata e capacità di ricalcolo su scala.
+La Figura~\ref{fig:lambda-schema} e la Tabella~\ref{tab:lambda-kappa-confronto} riassumono la Lambda e il confronto con l'impostazione adottata.
 
-% \begin{figure}[H]
-%   \centering
-%   \begin{tikzpicture}[
-%     node distance=0.9cm and 1.2cm,
-%     layer/.style={rectangle, draw, rounded corners, minimum width=2.4cm, minimum height=0.8cm, align=center, font=\small},
-%     store/.style={cylinder, draw, shape border rotate=90, aspect=0.22, minimum height=0.9cm, minimum width=1.4cm, align=center, font=\footnotesize},
-%     arrow/.style={-{Stealth[length=2mm]}, thick}
-%   ]
-%     \node[store] (ingest) {Event log};
-%     \node[layer, above=of ingest] (batch) {Batch layer};
-%     \node[layer, right=1.8cm of batch] (speed) {Speed layer};
-%     \node[layer, above=1.1cm of ingest] (serve) {Serving layer};
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+    node distance=0.9cm and 1.2cm,
+    layer/.style={rectangle, draw, rounded corners, minimum width=2.4cm, minimum height=0.8cm, align=center, font=\small},
+    store/.style={cylinder, draw, shape border rotate=90, aspect=0.22, minimum height=0.9cm, minimum width=1.4cm, align=center, font=\footnotesize},
+    arrow/.style={-{Stealth[length=2mm]}, thick}
+  ]
+    \node[store] (ingest) {Event log};
+    \node[layer, above=of ingest] (batch) {Batch layer};
+    \node[layer, right=1.8cm of batch] (speed) {Speed layer};
+    \node[layer, above=1.1cm of ingest] (serve) {Serving layer};
 % 
-%     \draw[arrow] (ingest) -- (batch);
-%     \draw[arrow] (ingest) -- (speed);
-%     \draw[arrow] (batch) -- (serve);
-%     \draw[arrow] (speed) -- (serve);
-%     \node[font=\footnotesize, below=0.1cm of ingest] {Vista Lambda};
-%   \end{tikzpicture}
-%   \caption{Schema concettuale dell'architettura Lambda: batch e speed layer alimentano il serving.}
-%   \label{fig:lambda-schema}
-% \end{figure}
+    \draw[arrow] (ingest) -- (batch);
+    \draw[arrow] (ingest) -- (speed);
+    \draw[arrow] (batch) -- (serve);
+    \draw[arrow] (speed) -- (serve);
+    \node[font=\footnotesize, below=0.1cm of ingest] {Vista Lambda};
+  \end{tikzpicture}
+  \caption{Schema concettuale dell'architettura Lambda: batch e speed layer alimentano il serving.}
+  \label{fig:lambda-schema}
+\end{figure}
 
 Il progetto di questa tesi adotta un \textbf{ibrido pragmatico}.
 L'addestramento avviene in batch off-line (\texttt{EcgModelTrainer}); l'inferenza opera in streaming (\texttt{EcgStreamingPredictor}).
 Non esiste uno speed layer che ricalcoli aggregati su finestra mobile: il modello è un artefatto statico ricaricato dal filesystem fino a un nuovo training.
 La configurazione è vicina alla Lambda con confine netto training/serving, pratica comune nei sistemi ML operativi dove la frequenza di retraining è ordini di grandezza inferiore a quella di inferenza~\cite{sculley2015hidden}.
 
-% \begin{table}[H]
-%   \centering
-%   \caption{Confronto sintetico Lambda, Kappa e impostazione del progetto.}
-%   \label{tab:lambda-kappa-confronto}
-%   \begin{tabular}{@{}p{2.8cm}p{3.2cm}p{3.2cm}p{3.6cm}@{}}
-%     \toprule
-%     \textbf{Aspetto} & \textbf{Lambda} & \textbf{Kappa} & \textbf{Questo progetto} \\
-%     \midrule
-%     Logica di calcolo & Duplicata (batch + speed) & Unificata sul log & Separata (train vs infer) \\
-%     Latenza inferenza & Bassa (speed layer) & Bassa & Bassa (streaming) \\
-%     Correttezza storica & Alta (batch) & Ricalcolo dal log & Training batch su CSV \\
-%     Complessità ops & Alta & Media & Bassa (prototipo) \\
-%     Model serving & Non specificato & Non specificato & Artefatto ML su FS \\
-%     \bottomrule
-%   \end{tabular}
-% \end{table}
+\begin{table}[H]
+  \centering
+  \caption{Confronto sintetico Lambda, Kappa e impostazione del progetto.}
+  \label{tab:lambda-kappa-confronto}
+  \footnotesize
+  \begin{tabular}{@{}p{2.4cm}p{2.9cm}p{2.9cm}p{3.3cm}@{}}
+    \toprule
+    \textbf{Aspetto} & \textbf{Lambda} & \textbf{Kappa} & \textbf{Questo progetto} \\
+    \midrule
+    Logica di calcolo & Duplicata (batch + speed) & Unificata sul log & Train vs infer separati \\
+    Latenza inferenza & Bassa (speed layer) & Bassa & Bassa (streaming) \\
+    Correttezza storica & Alta (batch) & Ricalcolo dal log & Training batch su CSV \\
+    Complessità ops & Alta & Media & Bassa (prototipo) \\
+    Model serving & Non specificato & Non specificato & Artefatto ML su FS \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 Rispetto alla Kappa pura, manca la possibilità di riaddestrare rileggendo soltanto Kafka: il training legge CSV storici, non il topic.
 Rispetto alla Lambda pura, manca un serving layer che fondo viste batch e real-time; le predizioni sono scritte direttamente su Delta Lake dal predictor.
@@ -69,110 +71,96 @@ La pipeline si articola in tre moduli funzionali e un orchestratore:
 
 La Figura~\ref{fig:architettura-logica} mostra il flusso logico dei dati; la Figura~\ref{fig:sequenza-avvio} ne dettaglia la sequenza temporale di avvio.
 
-% \begin{figure}[H]
-%   \centering
-%   \begin{tikzpicture}[
-%     node distance=1.1cm and 1.4cm,
-%     block/.style={rectangle, draw, rounded corners, minimum width=2.8cm, minimum height=0.9cm, align=center, font=\small},
-%     store/.style={cylinder, draw, shape border rotate=90, aspect=0.25, minimum height=1cm, minimum width=1.6cm, align=center, font=\small},
-%     arrow/.style={-{Stealth[length=2mm]}, thick}
-%   ]
-%     \node[store] (csv) {CSV\\MIT-BIH};
-%     \node[block, right=of csv] (trainer) {\texttt{EcgModelTrainer}};
-%     \node[store, right=of trainer] (model) {PipelineModel\\su FS};
-% 
-%     \node[block, below=1.8cm of csv] (sim) {\texttt{EcgPatientSimulator}};
-%     \node[block, right=of sim] (kafka) {Kafka\\ecg-input-stream};
-%     \node[block, right=of kafka] (predictor) {\texttt{EcgStreamingPredictor}};
-%     \node[store, right=of predictor] (delta) {Delta Lake\\predictions};
-% 
-%     \node[block, above=0.6cm of predictor] (runner) {\texttt{AppRunner}};
-% 
-%     \draw[arrow] (csv) -- (trainer);
-%     \draw[arrow] (trainer) -- (model);
-%     \draw[arrow] (csv) -- (sim);
-%     \draw[arrow] (sim) -- (kafka);
-%     \draw[arrow] (kafka) -- (predictor);
-%     \draw[arrow] (model) -- (predictor);
-%     \draw[arrow] (predictor) -- (delta);
-% 
-%     \draw[dashed, gray] (runner.south) -- ++(0,-0.3) -| (trainer.north);
-%     \draw[dashed, gray] (runner.south) -- ++(0,-0.3) -| (predictor.north);
-%     \draw[dashed, gray] (runner.south) -- ++(0,-0.3) -| (sim.north);
-%   \end{tikzpicture}
-%   \caption{Vista logica della pipeline: flusso batch (training), ingestion (simulatore) e streaming (inferenza). Le linee tratteggiate indicano il ruolo orchestratorio di \texttt{AppRunner}.}
-%   \label{fig:architettura-logica}
-% \end{figure}
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+    node distance=1.1cm and 1.4cm,
+    block/.style={rectangle, draw, rounded corners, minimum width=2.8cm, minimum height=0.9cm, align=center, font=\small},
+    store/.style={cylinder, draw, shape border rotate=90, aspect=0.25, minimum height=1cm, minimum width=1.6cm, align=center, font=\small},
+    arrow/.style={-{Stealth[length=2mm]}, thick}
+  ]
+    \node[store] (csv) {CSV\\MIT-BIH};
+    \node[block, right=of csv] (trainer) {\texttt{EcgModelTrainer}};
+    \node[store, right=of trainer] (model) {PipelineModel\\su FS};
+    \node[block, below=1.8cm of csv] (sim) {\texttt{EcgPatientSimulator}};
+    \node[block, right=of sim] (kafka) {Kafka\\ecg-input-stream};
+    \node[block, right=of kafka] (predictor) {\texttt{EcgStreamingPredictor}};
+    \node[store, right=of predictor] (delta) {Delta Lake\\predictions};
+    \node[block, above=0.6cm of predictor] (runner) {\texttt{AppRunner}};
+    \draw[arrow] (csv) -- (trainer);
+    \draw[arrow] (trainer) -- (model);
+    \draw[arrow] (csv) -- (sim);
+    \draw[arrow] (sim) -- (kafka);
+    \draw[arrow] (kafka) -- (predictor);
+    \draw[arrow] (model) -- (predictor);
+    \draw[arrow] (predictor) -- (delta);
+    \draw[dashed, gray] (runner.south) -- ++(0,-0.3) -| (trainer.north);
+    \draw[dashed, gray] (runner.south) -- ++(0,-0.3) -| (predictor.north);
+    \draw[dashed, gray] (runner.south) -- ++(0,-0.3) -| (sim.north);
+  \end{tikzpicture}
+  \caption{Flusso logico: training batch, ingestion simulata e inferenza streaming. Linee tratteggiate: orchestrazione \texttt{AppRunner}.}
+  \label{fig:architettura-logica}
+\end{figure}
 
 \subsection{Flusso granulare dei dati}
 
-A livello di trasformazioni, il percorso dei dati può essere descritto come segue:
-\begin{enumerate}
-  \item \textbf{CSV} $\rightarrow$ \texttt{DataFrame} Spark (header, \texttt{inferSchema}) nel trainer; pulizia \texttt{na.drop}, split 80/20, \texttt{Pipeline.fit}, salvataggio directory \texttt{ML\_MODEL\_PATH}.
-  \item \textbf{CSV} $\rightarrow$ subset di 1000 righe $\rightarrow$ \texttt{to\_json(struct(*))} $\rightarrow$ array sul driver $\rightarrow$ \texttt{KafkaProducer.send} con chiave \texttt{beat-\{i\}}.
-  \item \textbf{Kafka} $\rightarrow$ \texttt{readStream} $\rightarrow$ cast a stringa $\rightarrow$ \texttt{from\_json} con schema inferito dal CSV di training $\rightarrow$ \texttt{pipelineModel.transform}.
-  \item \textbf{Predizioni} $\rightarrow$ proiezione (\texttt{record}, \texttt{true\_label}, \texttt{prediction}, \texttt{probability}) $\rightarrow$ \texttt{foreachBatch} $\rightarrow$ append Delta + commit checkpoint offset.
-\end{enumerate}
+In sintesi: il trainer costruisce il modello da CSV; il simulatore pubblica JSON su Kafka; il predictor deserializza, classifica e appende su Delta con checkpoint.
+Il dettaglio implementativo (listing, \texttt{foreachBatch}, configurazione) è nel Capitolo~\ref{ch:implementazione-e-dettagli-tecnici}.
+Il modello ML (\texttt{PipelineModel.load}) è l'unico artefatto condiviso tra batch e streaming.
 
-Il modello ML è l'unico artefatto condiviso tra batch e streaming (\texttt{PipelineModel.load}).
-Kafka funge da cuscinetto temporale; Delta materializza l'output per analisi e audit.
-
-% \begin{figure}[H]
-%   \centering
-%   \begin{tikzpicture}[
-%     node distance=0.35cm,
-%     actor/.style={rectangle, draw, minimum width=2.1cm, minimum height=0.7cm, font=\footnotesize},
-%     lifeline/.style={dashed, gray},
-%     msg/.style={-{Stealth[length=1.5mm]}, font=\tiny}
-%   ]
-%     \node[actor] (ar) at (0,0) {AppRunner};
-%     \node[actor] (tr) at (3.2,0) {Trainer};
-%     \node[actor] (pr) at (6.4,0) {Predictor};
-%     \node[actor] (si) at (9.6,0) {Simulator};
-% 
-%     \foreach \x in {0,3.2,6.4,9.6} {
-%       \draw[lifeline] (\x,-0.4) -- (\x,-5.8);
-%     }
-% 
-%     \draw[msg] (0,-0.8) -- node[above, sloped] {train if missing} (3.2,-1.1);
-%     \draw[msg] (0,-1.6) -- node[above, sloped] {start thread} (6.4,-1.9);
-%     \node[font=\tiny, align=center] at (4.8,-2.6) {sleep 15s\\warmup};
-%     \draw[msg] (0,-3.2) -- node[above, sloped] {main} (9.6,-3.5);
-%     \draw[msg] (9.6,-4.2) -- node[above, sloped] {1000 msg} (6.4,-4.5);
-%     \draw[msg] (0,-5.2) -- node[above, sloped] {join} (6.4,-5.5);
-%   \end{tikzpicture}
-%   \caption{Sequenza di avvio orchestrata da \texttt{AppRunner}: training condizionale, predictor in thread demone, attesa, simulatore, join.}
-%   \label{fig:sequenza-avvio}
-% \end{figure}
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+    node distance=0.35cm,
+    actor/.style={rectangle, draw, minimum width=2.1cm, minimum height=0.7cm, font=\footnotesize},
+    lifeline/.style={dashed, gray},
+    msg/.style={-{Stealth[length=1.5mm]}, font=\tiny}
+  ]
+    \node[actor] (ar) at (0,0) {AppRunner};
+    \node[actor] (tr) at (3.2,0) {Trainer};
+    \node[actor] (pr) at (6.4,0) {Predictor};
+    \node[actor] (si) at (9.6,0) {Simulator};
+    \foreach \x in {0,3.2,6.4,9.6} {
+      \draw[lifeline] (\x,-0.4) -- (\x,-5.8);
+    }
+    \draw[msg] (0,-0.8) -- node[above, sloped] {train if missing} (3.2,-1.1);
+    \draw[msg] (0,-1.6) -- node[above, sloped] {start thread} (6.4,-1.9);
+    \node[font=\tiny, align=center] at (4.8,-2.6) {sleep 15s\\warmup};
+    \draw[msg] (0,-3.2) -- node[above, sloped] {main} (9.6,-3.5);
+    \draw[msg] (9.6,-4.2) -- node[above, sloped] {1000 msg} (6.4,-4.5);
+    \draw[msg] (0,-5.2) -- node[above, sloped] {join} (6.4,-5.5);
+  \end{tikzpicture}
+  \caption{Sequenza di avvio orchestrata da \texttt{AppRunner}: training condizionale, predictor in thread demone, attesa, simulatore, join.}
+  \label{fig:sequenza-avvio}
+\end{figure}
 
 \section{Vista fisica e deployment}\label{sec:vista-fisica}
 
 In ambiente sperimentale, l'intera pipeline gira su un singolo host di sviluppo.
 La Figura~\ref{fig:deployment} illustra la disposizione fisica.
 
-% \begin{figure}[H]
-%   \centering
-%   \begin{tikzpicture}[
-%     host/.style={rectangle, draw, dashed, rounded corners, minimum width=11cm, minimum height=5cm},
-%     block/.style={rectangle, draw, rounded corners, minimum width=2.6cm, minimum height=0.85cm, align=center, font=\small},
-%     docker/.style={rectangle, draw, fill=gray!8, rounded corners, minimum width=3.2cm, minimum height=1.6cm, align=center, font=\small},
-%     arrow/.style={-{Stealth[length=2mm]}, thick}
-%   ]
-%     \node[host, label={[font=\small\bfseries]above:Host di sviluppo (localhost)}] (host) {};
-%     \node[block] at ([xshift=-3.2cm, yshift=0.8cm]host.center) (jvm1) {JVM Spark\\Trainer};
-%     \node[block] at ([xshift=0cm, yshift=0.8cm]host.center) (jvm2) {JVM Spark\\Predictor};
-%     \node[block] at ([xshift=3.2cm, yshift=0.8cm]host.center) (jvm3) {JVM Spark\\Simulator};
-%     \node[docker] at ([yshift=-1.2cm]host.center) (kafka) {Docker\\Kafka KRaft\\:9092};
-%     \node[block] at ([xshift=-2.5cm, yshift=-1.2cm]host.center) (fs) {FS locale\\model + delta};
-% 
-%     \draw[arrow] (jvm3) -- node[above, font=\tiny] {produce} (kafka);
-%     \draw[arrow] (kafka) -- node[above, font=\tiny] {consume} (jvm2);
-%     \draw[arrow] (jvm1) -- (fs);
-%     \draw[arrow] (jvm2) -- (fs);
-%   \end{tikzpicture}
-%   \caption{Deployment mono-nodo: tre processi JVM Spark (\texttt{local[*]}) e un container Docker per Kafka.}
-%   \label{fig:deployment}
-% \end{figure}
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+    host/.style={rectangle, draw, dashed, rounded corners, minimum width=11cm, minimum height=5cm},
+    block/.style={rectangle, draw, rounded corners, minimum width=2.6cm, minimum height=0.85cm, align=center, font=\small},
+    docker/.style={rectangle, draw, fill=gray!8, rounded corners, minimum width=3.2cm, minimum height=1.6cm, align=center, font=\small},
+    arrow/.style={-{Stealth[length=2mm]}, thick}
+  ]
+    \node[host, label={[font=\small\bfseries]above:Host di sviluppo (localhost)}] (host) {};
+    \node[block] at ([xshift=-3.2cm, yshift=0.8cm]host.center) (jvm1) {JVM Spark\\Trainer};
+    \node[block] at ([xshift=0cm, yshift=0.8cm]host.center) (jvm2) {JVM Spark\\Predictor};
+    \node[block] at ([xshift=3.2cm, yshift=0.8cm]host.center) (jvm3) {JVM Spark\\Simulator};
+    \node[docker] at ([yshift=-1.2cm]host.center) (kafka) {Docker\\Kafka KRaft\\:9092};
+    \node[block] at ([xshift=-2.5cm, yshift=-1.2cm]host.center) (fs) {FS locale\\model + delta};
+    \draw[arrow] (jvm3) -- node[above, font=\tiny] {produce} (kafka);
+    \draw[arrow] (kafka) -- node[above, font=\tiny] {consume} (jvm2);
+    \draw[arrow] (jvm1) -- (fs);
+    \draw[arrow] (jvm2) -- (fs);
+  \end{tikzpicture}
+  \caption{Deployment mono-nodo: tre processi JVM Spark (\texttt{local[*]}) e un container Docker per Kafka.}
+  \label{fig:deployment}
+\end{figure}
 
 \subsection{Limiti del setup mono-nodo}
 
@@ -198,7 +186,7 @@ Il modulo batch implementa il ciclo completo di machine learning supervisionato.
 \subsection{Scelta del classificatore e alternative}
 
 Random Forest è configurato con \texttt{numTrees=100} e \texttt{maxDepth=15}~\cite{breiman2001random}.
-La scelta risponde alla natura tabellare delle feature (intervalli \texttt{pre-RR}/\texttt{post-RR}, morfologia QRS e intervali PQ/QT/ST su due derivazioni) e alla capacità degli ensemble di catturare interazioni non lineari senza normalizzazione rigorosa.
+La scelta risponde alla natura tabellare delle feature (intervalli \texttt{pre-RR}/\texttt{post-RR}, morfologia QRS e intervalli PQ/QT/ST su due derivazioni) e alla capacità degli ensemble di catturare interazioni non lineari senza normalizzazione rigorosa.
 
 Alternative valutabili nello stesso stack Spark includono:
 \begin{itemize}
@@ -347,4 +335,4 @@ L'istanza Kafka in Docker espone \texttt{PLAINTEXT} su localhost: nessuna autent
 I dati ECG, anche come feature, sono informazioni sanitarie sensibili: un deployment reale richiederebbe cifratura in transito (TLS tra edge, broker e Spark), controllo accessi al topic, cifratura at-rest su Delta e policy di retention allineate al GDPR.
 Il prototipo accademico omette questi controlli per ridurre la frizione sperimentale; vanno elencati esplicitamente come gap verso un sistema clinicamente deployabile.
 
-Il capitolo successivo entra nel dettaglio implementativo (configurazione, listing di codice, algoritmo \texttt{foreachBatch}), mentre il Capitolo~\ref{ch:analisi-dei-risultati-e-test} presenta metriche e misure di performance.
+Il Capitolo~\ref{ch:implementazione-e-dettagli-tecnici} approfondisce configurazione e codice; il Capitolo~\ref{ch:analisi-dei-risultati-e-test} raccoglie le misure sperimentali.

@@ -32,8 +32,8 @@ La semantica exactly-once a livello di micro-batch è garantita dalla combinazio
 \subsection{Obiettivo 5: valutazione sperimentale}
 
 \textbf{Parzialmente raggiunto.}
-Il framework di valutazione è definito (metriche AAMI, decomposizione latenza, analisi throughput), ma i valori numerici restano placeholder da sostituire con misure reali.
-Il Capitolo~\ref{ch:analisi-dei-risultati-e-test} documenta la metodologia e i risultati provvisori in attesa di consolidamento.
+Il Capitolo~\ref{ch:analisi-dei-risultati-e-test} definisce protocollo, metriche AAMI, decomposizione della latenza e discussione dell'impatto clinico.
+I numeri riportati nelle tabelle restano da consolidare con le run definitive del software; la struttura di valutazione è comunque pronta per accogliere i risultati reali.
 
 \subsection{Punti di forza}
 
@@ -93,10 +93,34 @@ Il trainer batch attuale, invocato on-demand da \texttt{AppRunner}, è un primo 
 Un passaggio da prototipo accademico a sistema clinicamente utilizzabile richiede validazione su dataset multi-centro, conformità a normative (MDR in Europa, FDA in USA) e processi di risk management (ISO 14971).
 Questi aspetti esulano dallo scope della tesi ma delimitano il confine tra dimostrazione tecnica e prodotto sanitario.
 
+\section{Riflessione critica sulle scelte architetturali}\label{sec:riflessione-architetturale}
+
+Con il prototipo completo, è possibile valutare a posteriori alcune decisioni.
+
+L'ibrido batch/streaming si è rivelato adeguato al caso d'uso: il training su CSV storici è semplice da ripetere, mentre l'inferenza su Kafka resta disaccoppiata dal simulatore.
+Il punto debole è il \emph{model serving} su filesystem: senza registry versionato, ogni retraining richiede riavvio del predictor.
+
+L'inferenza schema da CSV, scelta rapida in sviluppo, accoppia producer e consumer al layout del file Kaggle.
+In un dispositivo edge reale, un contratto esplicito (Avro/Protobuf) sarebbe stato preferibile fin dall'inizio.
+
+La separazione in tre moduli (\texttt{Trainer}, \texttt{Simulator}, \texttt{Predictor}) ha facilitato il debug isolato, ma \texttt{AppRunner} introduce coordinamento fragile (sleep di 15~s) che in produzione andrebbe sostituito da health-check.
+
+Random Forest su feature tabellari resta, col senno di poi, una scelta sensata per la tesi: interpretabile, nativa in MLlib, sufficiente sul MIT--BIH preprocessato.
+Non è stata dimostrata la necessità di modelli deep sul segnale raw per raggiungere l'obiettivo architetturale della tesi.
+
+\section{Collocazione nel panorama e-Health e Big Data}\label{sec:panorama-ehealth}
+
+Il lavoro si colloca tra la ricerca accademica su classificazione MIT--BIH e i sistemi commerciali di monitoraggio (es.\ dispositivi con singola derivazione e rilevamento fibrillazione atriale on-device).
+Rispetto a prodotti certificati (MDR, percorsi FDA), il prototipo non implementa risk management, validazione multi-centro né tracciabilità regolatoria: è una dimostrazione tecnica, non un SaMD.
+
+Nel panorama Big Data sanitario, la combinazione Kafka + Spark Structured Streaming + Delta Lake rispecchia pattern diffusi per \emph{lakehouse} operativi: log immutabile degli eventi, elaborazione near-real-time, storico interrogabile per audit.
+La telemedicina post-pandemia ha accelerato l'adozione di flussi continui da wearable; pipeline come quella descritta possono fungere da backend di ingestione e scoring, a valle di feature estratte su edge.
+
+Tendenze future --- apprendimento federato tra ospedali, modelli leggeri su microcontroller, \emph{digital twin} cardiaco --- non rendono obsoleta l'architettura implementata, ma ne suggeriscono l'estensione verso contratti dati rigidi, MLOps e dashboard cliniche.
+
 \section{Considerazioni conclusive}
 
-Il lavoro ha dimostrato la fattibilità di una pipeline Big Data per la classificazione near-real-time di aritmie cardiache, integrando machine learning classico con infrastruttura di streaming moderna.
-La scelta di Random Forest su feature tabellari, Kafka come buffer e Delta Lake come sink transazionale costituisce un baseline solido e interpretabile.
+Abbiamo costruito e documentato una pipeline end-to-end per classificare battiti ECG in near-real-time: training batch, ingestion su Kafka, inferenza Spark, persistenza Delta con checkpoint.
+Il percorso dal CSV storico al messaggio JSON fino alla riga in \texttt{ecg\_predictions} è ripetibile con \texttt{docker-compose} e \texttt{sbt run}, ed è questo il risultato principale del lavoro.
 
-Le estensioni proposte --- deep learning, edge computing, MLOps, dashboard analitiche --- non invalidano l'architettura attuale, ma la arricchiscono verso scenari operativi realistici.
-Il valore principale del progetto risiede nella dimostrazione end-to-end: dal dato storico al flusso in tempo quasi reale, con persistenza affidabile e recovery automatico.
+Le estensioni discusse (deep learning, edge AI, Schema Registry, MLOps) indicano dove investire per avvicinarsi a un deployment clinico; il nucleo architetturale resta valido come baseline modulare e comprensibile.
