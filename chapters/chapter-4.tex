@@ -37,6 +37,10 @@ La configurazione hardcoded è un limite riconosciuto del prototipo.
 In un'evoluzione produttiva, i path e gli endpoint andrebbero esternalizzati tramite Typesafe Config (HOCON), variabili d'ambiente o un servizio di configurazione centralizzato.
 Il path del dataset punta a un percorso assoluto Linux (\texttt{/home/andrea/data/ecg/*.csv}): su Windows o macOS va adattato manualmente prima dell'esecuzione.
 
+La struttura piatta del repository riflette la dimensione del progetto: quattro moduli funzionali e un file di configurazione, senza layer di astrazione intermedie (repository pattern, service layer, dependency injection).
+Per un prototipo accademico questa scelta è appropriata: ogni file corrisponde a un componente architetturale identificabile nel Capitolo~\ref{ch:progettazione-e-architettura-del-sistema}, e il lettore può navigare dal diagramma logico al codice senza attraversare gerarchie di package profonde.
+Un'evoluzione verso produzione potrebbe introdurre moduli SBT separati (\texttt{trainer}, \texttt{predictor}, \texttt{simulator}) con artefatti JAR indipendenti, deployabili su cluster distinti.
+
 \section{Build e gestione delle dipendenze}\label{sec:build-sbt}
 
 Il progetto è gestito con \textbf{SBT 1.12.4} e Scala \textbf{2.13.18}.
@@ -61,6 +65,10 @@ Non sono presenti dipendenze di test (\texttt{scalatest}) né plugin di packagin
 
 \texttt{idePackagePrefix := Some("it.utiu.thesis")} imposta il package root per l'IDE senza alterare la struttura delle directory sotto \texttt{src/main/scala/}.
 
+L'assenza di \texttt{sbt-assembly} implica che l'esecuzione avviene tramite \texttt{sbt run}, che risolve le dipendenze Spark e Delta dal classpath SBT.
+In un deployment cluster, sarebbe necessario costruire un \emph{fat JAR} con tutte le dipendenze (o usare Spark submit con --packages), e gestire i conflitti di versione tra connettori Kafka, Delta e runtime Spark.
+Per il prototipo locale, \texttt{sbt run} è sufficiente e riduce la complessità di build; la transizione verso packaging production-grade è una estensione naturale non affrontata in questa tesi.
+
 \section{Infrastruttura Docker e broker Kafka}\label{sec:docker-kafka}
 
 Kafka è avviato tramite \texttt{docker-compose.yml} con immagine \texttt{apache/kafka:latest} in modalità \textbf{KRaft} su un singolo nodo (\texttt{broker,controller}).
@@ -74,6 +82,11 @@ In produzione servirebbero almeno tre broker, replication factor $\geq 3$ e sepa
 
 Spark non è containerizzato: gira sulla JVM host con \texttt{local[*]}.
 La scelta semplifica il debug (log unificati, Spark UI su \texttt{4040}) a scapito del disaccoppiamento infrastrutturale tipico dei deployment cloud-native.
+
+Il file \texttt{docker-compose.yml} avvia un singolo container Kafka con ruoli broker e controller combinati.
+I listener sono configurati per \texttt{PLAINTEXT} su \texttt{localhost:9092}, senza autenticazione SASL né TLS.
+Per avviare l'infrastruttura è sufficiente \texttt{docker-compose up -d} dalla root del repository; lo stop con \texttt{docker-compose down} rimuove il container ma non i volumi, preservando i topic e gli offset tra sessioni di sviluppo.
+In caso di corruzione dello stato Kafka o di necessità di reset completo, è possibile ricreare il container con \texttt{docker-compose down -v} e ripartire da offset \texttt{earliest}, previa cancellazione del checkpoint Spark per evitare incongruenze tra offset committati e stato del broker.
 
 \section{Configurazione \texttt{SparkSession}}\label{sec:spark-session-config}
 
@@ -95,6 +108,10 @@ SparkSession.builder()
 \texttt{SPARK\_MASTER = "local[*]"} assegna tutti i core della macchina a un unico executor logico: adeguato per $\sim$100\,000 righe CSV e micro-batch piccoli, insufficiente per carichi multi-paziente senza cluster.
 
 Parametri di tuning non sono stati variati (\texttt{spark.sql.shuffle.partitions}, memoria driver/executor): su dataset tabellari di questa dimensione i default Spark 4.x sono generalmente sufficienti; su cluster andrebbero calibrati in funzione del numero di partizioni Kafka e della cardinalità del modello.
+
+Trainer, predictor e simulatore creano ciascuno una propria \texttt{SparkSession} con \texttt{getOrCreate()}, che riusa la sessione esistente se già attiva nella JVM.
+In \texttt{AppRunner}, trainer e predictor condividono potenzialmente la stessa sessione se eseguiti nello stesso processo, mentre il simulatore ne crea una terza quando viene avviato dal main thread.
+Questa molteplicità di sessioni non causa conflitti nel prototipo, ma in un deployment più rigoroso si potrebbe centralizzare la creazione della sessione in un modulo condiviso, evitando configurazioni duplicate e garantendo un unico punto di modifica per parametri Spark globali.
 
 \section{Data pipeline e machine learning}\label{sec:data-pipeline-ml}
 
@@ -141,6 +158,10 @@ val pipeline = new Pipeline()
 In training, etichette o feature mancanti ricevono un bucket dedicato anziché causare eccezioni.
 In streaming, battiti con feature incomplete possono comunque transitare nella pipeline, producendo predizioni potenzialmente inaffidabili.
 Un approccio più rigoroso prevedrebbe filtraggio a monte (\texttt{drop} o quarantena su topic separato) anziché tolleranza silenziosa.
+
+Il numero di feature effettive dipende dalle colonne presenti nel CSV: con 34 colonne totali e esclusione di \texttt{record}, \texttt{type} e \texttt{label}, il vettore numerico contiene 32 attributi (16 per derivazione).
+Il \texttt{VectorAssembler} concatena questi valori in un unico vettore denso senza normalizzazione esplicita.
+Random Forest non richiede scaling delle feature, a differenza di algoritmi basati su distanze o gradienti; questa proprietà semplifica la pipeline e riduce il rischio di mismatch tra statistiche di normalizzazione calcolate in training e applicate in streaming.
 
 \subsection{Split, addestramento e valutazione}
 
@@ -189,6 +210,10 @@ ml-model/ecg-pipeline-model/
 
 Il flag \texttt{overwrite()} consente retraining senza rimozione manuale della directory precedente.
 In produzione, versionare i modelli (MLflow, DVC) eviterebbe sovrascritture accidentali e permetterebbe rollback.
+
+La directory del modello include metadata Spark ML, stages serializzati e statistiche dell'indicizzatore (\texttt{StringIndexer}).
+Al caricamento con \texttt{PipelineModel.load}, il predictor ottiene un oggetto immutabile pronto per \texttt{transform}, senza rieseguire fit o accesso al dataset di training.
+Questa separazione è il meccanismo che rende l'inferenza streaming indipendente dalla fase batch: il predictor non legge il CSV se non per inferire lo schema JSON, e non accede ai dati di training per la classificazione.
 
 \section{Gestione dello streaming}\label{sec:gestione-streaming}
 
@@ -406,6 +431,11 @@ Ripetere \texttt{AppRunner} con dataset ridotto e confrontare conteggio righe De
 
 L'assenza di test è stata accettata per concentrare lo sforzo sull'integrazione tecnologica; in un percorso verso produzione, almeno test su parsing JSON e su consistenza schema CSV/Kafka sarebbero il primo investimento consigliato.
 
+\paragraph{Test di regressione sulle metriche.}
+Una volta consolidate le run definitive, si potrebbe automatizzare un test che confronta l'accuratezza sul test set con una soglia minima (ad esempio 95\%).
+Se un refactoring del codice o un aggiornamento di dipendenze degradasse le performance sotto la soglia, la CI fallirebbe prima del merge.
+Analogamente, un test di integrazione potrebbe verificare che il conteggio delle righe in Delta dopo una run completa coincida con il numero di messaggi prodotti dal simulatore, rilevando perdite o duplicazioni nel percorso Kafka--Spark--Delta.
+
 \section{Riepilogo implementativo}
 
 La Tabella~\ref{tab:componenti-implementazione} collega ogni componente alle scelte implementative salienti.
@@ -431,3 +461,7 @@ La Tabella~\ref{tab:componenti-implementazione} collega ogni componente alle sce
 \end{table}
 
 Nel capitolo seguente si riportano metriche di classificazione, latenza e throughput ottenuti eseguendo questa implementazione.
+
+Dal punto di vista del ciclo di sviluppo, l'implementazione privilegia la leggibilità rispetto all'ottimizzazione prematura.
+Listing di codice, configurazioni esplicite e assenza di framework di dependency injection rendono il repository accessibile a chi conosce Spark ma non ha sviluppato la pipeline.
+Al contempo, le scelte documentate come limiti (\texttt{collect()}, sleep 15s, path hardcoded) costituiscono una checklist per chi deve portare il sistema verso un ambiente operativo, senza dover reverse-engineerare le intenzioni progettuali dal solo codice sorgente.

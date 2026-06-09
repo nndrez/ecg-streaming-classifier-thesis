@@ -56,6 +56,9 @@ I numeri riportati nelle tabelle restano da consolidare con le run definitive de
   \item \textbf{Gestione sbilanciamento}: assente class weighting o oversampling; classi rare (F, Q) penalizzate.
 \end{itemize}
 
+Il bilancio complessivo è positivo rispetto agli obiettivi iniziali: la pipeline funziona end-to-end, il codice è documentato e riproducibile, e l'architettura è estendibile senza rifondamenti concettuali.
+Le riserve riguardano principalmente la maturità operativa (testing, osservabilità, sicurezza) e la validazione clinica dei numeri, non la fattibilità tecnica dell'integrazione Kafka--Spark--Delta.
+
 \section{Possibili estensioni}\label{sec:estensioni}
 
 \subsection{Deep learning sul segnale raw}
@@ -93,6 +96,11 @@ Il trainer batch attuale, invocato on-demand da \texttt{AppRunner}, è un primo 
 Un passaggio da prototipo accademico a sistema clinicamente utilizzabile richiede validazione su dataset multi-centro, conformità a normative (MDR in Europa, FDA in USA) e processi di risk management (ISO 14971).
 Questi aspetti esulano dallo scope della tesi ma delimitano il confine tra dimostrazione tecnica e prodotto sanitario.
 
+\subsection{Priorità suggerite per un percorso verso produzione}
+
+In ordine di impatto e fattibilità, le estensioni più urgenti per avvicinare il prototipo a un sistema deployabile sarebbero: (1)~completare le metriche sperimentali e introdurre test automatici su parsing e consistenza schema; (2)~esternalizzare la configurazione e adottare un contratto dati esplicito (Schema Registry); (3)~implementare observability (metriche Kafka lag, latenza micro-batch, error rate) e sicurezza di base (TLS, autenticazione); (4)~validare il modello su dataset multi-sorgente e introdurre class weighting o split per soggetto.
+Le estensioni deep learning e digital twin, pur rilevanti strategicamente, presuppongono un'infrastruttura operativa matura che il prototipo attuale non ancora possiede.
+
 \section{Riflessione critica sulle scelte architetturali}\label{sec:riflessione-architetturale}
 
 Con il prototipo completo, è possibile valutare a posteriori alcune decisioni.
@@ -108,6 +116,9 @@ La separazione in tre moduli (\texttt{Trainer}, \texttt{Simulator}, \texttt{Pred
 Random Forest su feature tabellari resta, col senno di poi, una scelta sensata per la tesi: interpretabile, nativa in MLlib, sufficiente sul MIT--BIH preprocessato.
 Non è stata dimostrata la necessità di modelli deep sul segnale raw per raggiungere l'obiettivo architetturale della tesi.
 
+La scelta di \texttt{foreachBatch} rispetto al sink Delta nativo ha privilegiato trasparenza e controllo in fase di debug, accettando codice imperativo aggiuntivo.
+In retrospettiva, per un deployment in cui la logica per batch è banale (append puro), il sink dichiarativo avrebbe ridotto la superficie di errore; per la fase di prototipazione, la possibilità di \texttt{show} e logging condizionale ha accelerato la diagnosi di problemi di parsing e trasformazione.
+
 \section{Collocazione nel panorama e-Health e Big Data}\label{sec:panorama-ehealth}
 
 Il lavoro si colloca tra la ricerca accademica su classificazione MIT--BIH e i sistemi commerciali di monitoraggio (es.\ dispositivi con singola derivazione e rilevamento fibrillazione atriale on-device).
@@ -118,9 +129,15 @@ La telemedicina post-pandemia ha accelerato l'adozione di flussi continui da wea
 
 Tendenze future --- apprendimento federato tra ospedali, modelli leggeri su microcontroller, \emph{digital twin} cardiaco --- non rendono obsoleta l'architettura implementata, ma ne suggeriscono l'estensione verso contratti dati rigidi, MLOps e dashboard cliniche.
 
+Rispetto a soluzioni commerciali che integrano hardware, firmware e cloud in un unico prodotto certificato, questa tesi isola e rende esplicito il \emph{backend analitico}: la parte che riceve eventi, applica un modello e persiste risultati auditabili.
+Questa separazione è utile sia in contesto accademico, per comprendere i building block, sia in contesto industriale, dove sensori e algoritmi provengono spesso da vendor diversi e devono interoperare tramite bus di eventi come Kafka.
+
 \section{Considerazioni conclusive}
 
 Abbiamo costruito e documentato una pipeline end-to-end per classificare battiti ECG in near-real-time: training batch, ingestion su Kafka, inferenza Spark, persistenza Delta con checkpoint.
 Il percorso dal CSV storico al messaggio JSON fino alla riga in \texttt{ecg\_predictions} è ripetibile con \texttt{docker-compose} e \texttt{sbt run}, ed è questo il risultato principale del lavoro.
 
 Le estensioni discusse (deep learning, edge AI, Schema Registry, MLOps) indicano dove investire per avvicinarsi a un deployment clinico; il nucleo architetturale resta valido come baseline modulare e comprensibile.
+
+Il lavoro dimostra che tecnologie consolidate nello stack Big Data possono essere composte in una pipeline coerente per dati biomedici strutturati, senza ricorrere a piattaforme proprietarie o a framework sperimentali.
+Per chi affronta problemi analoghi --- classificazione in streaming su feature tabellari, con training batch e requisiti di fault tolerance --- il percorso documentato in questa tesi offre un template riutilizzabile, con limiti e gap esplicitati per orientare evoluzioni future.

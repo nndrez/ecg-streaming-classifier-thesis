@@ -78,6 +78,11 @@ In applicazioni automatiche, la forma locale del QRS e la durata degli intervall
 Gli \emph{intervalli RR} (distanza temporale tra picchi R consecutivi) sono la misura principale per la frequenza cardiaca e per la \emph{Heart Rate Variability} (HRV).
 In presenza di aritmie, la distribuzione degli RR perde regolarità: ectopie, pause o tachicardie producono sequenze che un classificatore può sfruttare insieme alla morfologia del battito isolato~\cite{taskforce1996hrv,dechazal2004automatic}.
 
+Dal punto di vista diagnostico, le alterazioni morfologiche e ritmiche non sono equivalenti.
+Un battito con morfologia QRS normale ma intervallo RR anomalo (ad esempio una extrasistole con compensazione incompleta) può essere classificato diversamente da un battito con QRS allargato e morfologia bizzarra tipica di un'origine ventricolare.
+Per questo motivo i descrittori tabellari del dataset impiegato combinano entrambe le prospettive: intervalli \texttt{pre-RR} e \texttt{post-RR} per il contesto ritmico, ampiezze e durate per la morfologia istantanea.
+La classificazione automatica, in questo contesto, non mira a sostituire l'interpretazione clinica complessiva del tracciato, ma a supportare lo screening di singoli battiti in flussi ad alta frequenza, dove la revisione manuale di ogni evento sarebbe impraticabile.
+
 \subsection{Variabilità della frequenza cardiaca}
 
 La HRV quantifica le fluttuazioni dell'intervallo RR attorno al valore medio e riflette, in parte, l'equilibrio tra i sistemi simpatico e parasimpatico.
@@ -98,6 +103,10 @@ Il \textbf{rapporto LF/HF} è usato in letteratura come indicatore sintetico del
 Nel dataset impiegato, metriche HRV globali (SDNN, RMSSD, spettro LF/HF) non sono calcolate in tempo reale dalla pipeline Scala; il CSV contiene però intervalli RR locali (\texttt{pre-RR}, \texttt{post-RR}) e descrittori morfologici già estratti offline dal segnale grezzo.
 Il classificatore opera quindi su un livello di astrazione che unifica morfologia istantanea e contesto ritmico immediato attorno al battito corrente.
 
+In letteratura clinica, la HRV globale è utilizzata per valutare il rischio cardiaco, lo stress autonomico e la risposta a interventi terapeutici.
+Nel contesto della classificazione beat-to-beat, invece, le metriche globali (SDNN, spettro LF/HF) sono meno direttamente applicabili: ogni battito viene classificato in isolamento o con un contesto ristretto agli intervalli RR adiacenti.
+Questa distinzione è importante per interpretare correttamente i risultati del modello: un'elevata accuratezza sulla classe \texttt{N} non implica necessariamente una buona caratterizzazione della variabilità ritmica complessiva del paziente, bensì la capacità di riconoscere singoli battiti la cui morfologia e contesto RR locale sono coerenti con il ritmo sinusale.
+
 \subsection{Rappresentazione computazionale e feature}
 
 Dal punto di vista computazionale, il battito ECG può essere rappresentato come una \textbf{sequenza multiscala}: una componente temporale (distanza tra eventi) e una componente morfologica (forma del tracciato locale).
@@ -113,6 +122,10 @@ Nel file \texttt{MIT-BIH Arrhythmia Database.csv} del corpus Kaggle~\cite{sakib2
 
 Tali attributi costituiscono il \emph{vettore di ingresso} per modelli di machine learning classico (Random Forest nel caso di studio) e sono prodotti da una catena di preprocessing che precede l'addestramento batch.
 La scelta di non trasmettere il segnale raw riduce la complessità del modello, limita il volume dei messaggi Kafka e rende esplicita la semantica di ogni campo nel payload JSON.
+
+La duplicazione delle feature su due derivazioni (lead~II e V5) riflette una pratica consolidata in cardiologia: ciascuna derivazione offre una prospettiva diversa sull'attività elettrica ventricolare, e la combinazione di più canali può migliorare la discriminazione tra classi con morfologie simili su un singolo lead.
+Nel CSV preprocessato, i prefissi \texttt{0\_} e \texttt{1\_} mantengono questa separazione senza richiedere algoritmi di fusione espliciti: il \texttt{VectorAssembler} concatena tutte le colonne numeriche in un unico vettore, lasciando al Random Forest il compito di apprendere le interazioni tra derivazioni.
+Questo approccio è pragmatico per un prototipo, sebbene in un sistema maturo si potrebbero esplorare tecniche di feature selection o modelli multi-input che pesano diversamente ciascuna derivazione in funzione della qualità del segnale.
 
 \subsection{Preprocessing e qualità del segnale}\label{subsec:preprocessing}
 
@@ -138,6 +151,11 @@ In una pipeline distribuita, questa valutazione ha anche valenza architetturale:
 Il preprocessing può dunque essere letto come \textbf{normalizzazione semantica}: il segnale fisiologico diventa una rappresentazione tabellare allineata al modello ML.
 In produzione, la fase può risiedere sul dispositivo wearable o su un gateway, così da inviare al data center feature già validate anziché campioni raw ad alta frequenza.
 
+Gli artefatti più frequenti in acquisizioni ambulatoriali includono interferenza elettromagnetica, contatto instabile degli elettrodi, movimenti del paziente e saturazione dell'amplificatore.
+Ciascuno di questi fenomeni può distorcere le ampiezze delle onde o introdurre picchi spuri che un detector QRS interpreta come battiti aggiuntivi.
+La letteratura propone indici di qualità del segnale (SQI) che combinano metriche nel dominio del tempo, della frequenza e della forma d'onda~\cite{li2013sqi}; il loro utilizzo a monte della classificazione riduce la propagazione di errori verso il modello ML.
+Nel flusso sperimentale di questa tesi, la qualità del segnale è implicitamente garantita dal preprocessing offline che ha prodotto il CSV Kaggle; in un deployment reale, la valutazione SQI andrebbe integrata nel percorso edge prima della pubblicazione su Kafka.
+
 \section{Dataset sperimentale: MIT--BIH tabellare (Kaggle)}\label{sec:dataset}
 
 Per la fase sperimentale si utilizza la versione tabellare del \textbf{MIT--BIH Arrhythmia Database} pubblicata nel corpus Kaggle \emph{ECG Arrhythmia Classification Dataset}~\cite{sakib2021kaggle,sakib2021edge}, derivato dalla raccolta originale su PhysioNet~\cite{moody2001impact,goldberger2000physiobank}.
@@ -157,11 +175,20 @@ Le proprietà salienti del database grezzo sono le seguenti:
 
 La versione CSV impiegata nel progetto non contiene campioni raw del segnale, bensì battiti già segmentati con feature estratte offline (filtraggio, rilevamento QRS, calcolo di intervalli e descrittori morfologici)~\cite{sakib2021edge,dechazal2004automatic}: la pipeline Scala legge questi archivi senza ripetere sul cluster l'intera catena descritta in \S\ref{subsec:preprocessing}.
 
+Il corpus PhysioNet~\cite{goldberger2000physiobank} ha svolto un ruolo fondamentale nella standardizzazione della ricerca su segnali fisiologici, offrendo accesso libero a database annotati e toolkit di analisi.
+Il MIT--BIH Arrhythmia Database, in particolare, è stato utilizzato in centinaia di pubblicazioni come benchmark per confrontare algoritmi di classificazione, rilevamento QRS e misura di intervalli.
+La sua longevità comporta però anche limiti noti: acquisizioni datate, popolazione non rappresentativa dell'attuale demografia clinica, e annotazioni che, sebbene curate da esperti, non sono immune da disaccordi inter-osservatore su casi borderline.
+Per una tesi focalizzata sull'architettura della pipeline, questi limiti sono accettabili; per una validazione clinica, richiederebbero integrazione con dataset più recenti e diversificati.
+
 \subsection{Schema del file CSV e volume dati}
 
 Il file \texttt{MIT-BIH Arrhythmia Database.csv} contiene \textbf{100\,689} battiti da \textbf{44} registrazioni (colonna \texttt{record}), con \textbf{34} colonne totali (identificativo, etichetta e 32 feature).
 Quattro tracce presenti nel MIT--BIH grezzo non compaiono nel CSV preprocessato, probabilmente escluse in fase di estrazione per qualità del segnale o annotazioni incomplete.
 Ogni riga corrisponde a un battito; le feature duplicano la stessa semantica su due derivazioni (lead~II, prefisso \texttt{0\_}; lead~V5, prefisso \texttt{1\_}), come riassunto in Tabella~\ref{tab:csv-schema}.
+
+Il volume di circa 100\,000 battiti è sufficiente per addestrare modelli ensemble su singola macchina con tempi di esecuzione contenuti, ma non rappresenta la scala di un deployment multi-paziente in cui milioni di battiti al giorno confluiscono verso un data center.
+In tale prospettiva, la pipeline descritta in questa tesi funge da \emph{prova di concetto} su scala ridotta: le stesse tecnologie (Kafka, Spark, Delta) sono progettate per gestire volumi ordini di grandezza superiori, come discusso nei capitoli dedicati allo stack tecnologico e alla scalabilità.
+La scelta di limitare il simulatore a 1000 messaggi per run sperimentale riduce ulteriormente il carico, mantenendo comunque un percorso end-to-end verificabile.
 
 \subsection{Schema di raggruppamento AAMI e etichette nel CSV}
 
@@ -232,6 +259,12 @@ Nel prototipo attuale non è implementato alcun ribilanciamento esplicito: la sc
 
 Dal punto di vista sperimentale, il MIT--BIH offre un compromesso favorevole tra complessità e riproducibilità: registrazioni sufficientemente eterogenee per stressare la pipeline, ma di dimensione gestibile in un contesto accademico in cui l'obiettivo principale non è il record di performance isolato, bensì la validazione di un flusso integrato dal dato storico allo streaming.
 
+Le tecniche di ribilanciamento meritano una discussione più approfondita.
+L'\textbf{undersampling} della classe maggioritaria riduce i tempi di training e bilancia le classi, ma scarta informazione potenzialmente utile sui pattern del ritmo normale.
+L'\textbf{oversampling} (random o sintetico, ad esempio SMOTE) aumenta la rappresentazione delle classi rare, ma rischia di generare esempi artificiali non rappresentativi della variabilità clinica reale.
+Il \textbf{class weighting} penalizza maggiormente gli errori sulle classi minoritarie durante l'addestramento, senza alterare la distribuzione dei dati; Spark MLlib supporta pesi per classe in diversi classificatori, sebbene non sia stato attivato nel prototipo.
+La scelta di non applicare ribilanciamento esplicito rende i risultati più conservativi e più facili da confrontare con studi che adottano la stessa impostazione, ma va tenuta presente nell'interpretazione delle metriche sulle classi F e Q.
+
 \subsection{Tipologie di anomalie contenute e limiti}\label{subsec:tipologie-di-anomalie}
 
 Le annotazioni includono ectopie ventricolari (PVC), alterazioni di conduzione, battiti supraventricolari e, in alcune tracce, eventi rari o tratti rumorosi che mettono alla prova la segmentazione.
@@ -241,6 +274,10 @@ La \emph{generalizzabilità} verso altre popolazioni (età, sesso, patologia, di
 I pazienti del MIT--BIH sono in gran parte adulti ricoverati o in follow-up cardiologico negli Stati Uniti della fine degli anni Settanta; un modello addestrato solo su questa distribuzione può degradare su cohort europee, pediatriche o su segnali da wearable consumer con banda e rumore differenti.
 
 Per un classificatore supervisionato, la coerenza tra annotazioni, segmentazione e feature è tanto importante quanto l'algoritmo di apprendimento: errori a monte si propagano come etichette rumorose o descrittori distorti, limitando il soffitto di performance raggiungibile anche con modelli più complessi.
+
+Tra le anomalie più frequenti nel MIT--BIH figurano le \textbf{contrazioni premature ventricolari} (PVC), caratterizzate da QRS largo e morfologia distinta dal ritmo sinusale, e le \textbf{extrasistoli supraventricolari}, spesso con QRS stretto ma intervallo RR anomalo.
+I \textbf{battiti di fusione} (classe F) rappresentano un caso limite in cui un impulso ventricolare e uno sinusale si sovrappongono temporalmente, producendo morfologie ibride difficili da classificare anche per annotatori umani.
+La classe Q (\emph{unknown}) raggruppa battiti non classificabili, tratti rumorosi o etichette non mappate nello schema AAMI: la sua rarissima presenza nel CSV ($<$0{,}1\%) rende quasi impossibile una valutazione statistica affidabile su questa categoria.
 
 \section{Edge Computing e ruolo del simulatore}\label{sec:edge-computing}
 
@@ -253,6 +290,11 @@ Si distinguono almeno tre livelli~\cite{kleppmann2017designing}:
 \end{itemize}
 
 Per l'ECG, spostare filtraggio, QRS detection e estrazione delle feature verso l'edge risponde a tre esigenze concrete: ridurre la latenza tra evento cardiaco e allarme; diminuire il traffico (un battito con 32 feature numeriche occupa ordini di grandezza in meno di un secondo di segnale a 360~Hz); limitare l'esposizione di dati biometrici raw oltre il perimetro controllato del paziente.
+
+Un confronto quantitativo illustra il vantaggio in termini di banda.
+Un secondo di segnale ECG a 360~Hz con risoluzione a 16 bit su un canale produce circa 720 byte di campioni raw; lo stesso battito, rappresentato come JSON con 32 feature numeriche e metadati, occupa tipicamente qualche centinaio di byte.
+Moltiplicando per una frequenza cardiaca media di 60--80 battiti al minuto, il risparmio cumulato su ore di monitoraggio diventa significativo, soprattutto su connessioni mobili con costi di trasferimento o limiti di batteria sul dispositivo wearable.
+Inoltre, elaborare localmente consente di applicare filtri e SQI prima della trasmissione, evitando di saturare il broker con eventi di bassa qualità.
 
 Dispositivi come Holter multicanale, patch ECG monouso e braccialetti con singola derivazione implementano già, in parte, questa logica: acquisiscono a alta frequenza localmente, poi trasmettono riassunti, eventi o tratti selezionati.
 Il progetto di tesi non dispone di hardware dedicato; il componente \texttt{EcgPatientSimulator} emula il comportamento di un producer edge che pubblica feature già calcolate sul topic Kafka \texttt{ecg-input-stream}, in formato JSON.
@@ -267,10 +309,19 @@ Per la tesi, questi aspetti restano fuori dall'implementazione, ma orientano le 
 
 La riproducibilità degli esperimenti ne beneficia: la sequenza di messaggi può essere rigenerata con la stessa logica (\texttt{limit(1000)}, intervallo di un secondo), permettendo confronti tra configurazioni del predictor o del checkpoint senza variabilità legata a dispositivi reali.
 
+Dal punto di vista architetturale, il simulatore occupa il ruolo di \emph{producer} nel diagramma logico della pipeline: non partecipa all'addestramento né alla persistenza, ma alimenta il topic Kafka con lo stesso formato che un dispositivo edge produrrebbe in produzione.
+Questa separazione è deliberata e consente di sostituire il simulatore con un producer reale senza modificare il predictor o il trainer.
+In uno scenario multi-paziente, più istanze del simulatore (o di dispositivi reali) potrebbero pubblicare sullo stesso topic, sfruttando le partizioni Kafka per parallelizzare il consumo; nel prototipo attuale, un singolo producer sequenziale è sufficiente per dimostrare il flusso.
+
 \subsection{Scenario evolutivo: digital twin}
 
 A orizzonte più ampio, i flussi ECG da molteplici fonti potrebbero alimentare un \emph{digital twin} cardiaco del paziente: modello che integra storico clinico, eventi in tempo quasi reale e predizioni per simulare risposte a terapie o per prioritizzare alert.
 Il prototipo descritto in questa tesi costituisce un mattone elementare di tale visione---ingestion, classificazione, persistenza versionata---senza pretendere di realizzarne la complessità clinica e regolatoria.
+
+Un \emph{digital twin} cardiaco richiederebbe l'integrazione di molteplici fonti dati oltre all'ECG: pressione arteriosa, imaging, farmaci assunti, storia clinica del paziente.
+La pipeline implementata fornisce il sottosistema di \textbf{ingestion e scoring in tempo quasi reale} che alimenterebbe tale modello con eventi classificati e timestampati.
+Delta Lake, con il supporto al \emph{time travel}, consentirebbe di ricostruire lo stato delle predizioni a un istante passato, utile per audit clinici o per simulare l'effetto di diverse soglie di allarme su dati storici.
+La persistenza versionata delle predizioni è un prerequisito per qualsiasi sistema che debba giustificare retrospettivamente una decisione clinica supportata da algoritmo.
 
 \section{Considerazioni etiche e implicazioni cliniche}\label{sec:considerazioni-etiche-e-implicazioni-cliniche}
 
@@ -290,3 +341,14 @@ Il MIT--BIH, per quanto prezioso, introduce \emph{bias} demografico e tecnologic
 
 Infine, la pipeline deve essere leggibile da chi risponde dei dati: finalità del trattamento, minimizzazione (feature anziché raw dove possibile), retention su Delta Lake e accessi al broker vanno progettati con pari attenzione rispetto all'accuratezza del classificatore.
 Senza questi accorgimenti, anche un modello accurato resterebbe confinato al laboratorio.
+
+\paragraph{Protezione dei dati e minimizzazione.}
+Il Regolamento Generale sulla Protezione dei Dati (GDPR) impone principi di liceità, trasparenza, minimizzazione e limitazione della conservazione per i dati sanitari.
+La pipeline adotta, in parte, il principio di minimizzazione trasmettendo feature estratte anziché segnali raw, riducendo la quantità di informazione biometrica sensibile che transita sul broker.
+Tuttavia, anche le feature morfologiche e gli identificativi di registrazione (\texttt{record}) possono consentire la re-identificazione in contesti specifici; un deployment reale richiederebbe pseudonimizzazione degli identificativi, cifratura end-to-end e policy di retention definite contrattualmente con il titolare del trattamento.
+
+\paragraph{Equità e rappresentatività.}
+I modelli di machine learning possono ereditare e amplificare bias presenti nei dati di training.
+Il MIT--BIH, acquisito quasi cinquant'anni fa su una popolazione ospedaliera statunitense, potrebbe non generalizzare equamente su altre etnie, fasce d'età o condizioni comorbide.
+Un sistema deployato senza validazione su sottogruppi rischia di performare in modo diseguale, con implicazioni etiche oltre che cliniche.
+La documentazione trasparente delle performance per classe AAMI, come proposta nel Capitolo~\ref{ch:analisi-dei-risultati-e-test}, è un primo passo verso una valutazione responsabile, ma non sostituisce studi di validazione esterna su popolazioni diverse.

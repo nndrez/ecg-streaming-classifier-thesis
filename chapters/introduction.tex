@@ -16,6 +16,15 @@ I falsi negativi possono portare a omissioni diagnostiche rilevanti, mentre i fa
 Ne deriva l'esigenza di una pipeline che non si limiti a produrre una classificazione accurata, ma che sia anche \emph{interpretabile} dal punto di vista architetturale, scalabile nel numero di sorgenti e adatta a operare su infrastrutture distribuite.
 In tale prospettiva, il progetto affronta il problema della classificazione di battiti ECG come un caso di studio per l'integrazione tra \textbf{machine learning classico} e \textbf{data streaming}.
 
+Il contesto clinico rende particolarmente rilevante la distinzione tra \emph{monitoraggio episodico} e \emph{monitoraggio continuo}.
+Nel primo caso, l'ECG viene acquisito in ambulatorio o in reparto per intervalli limitati; nel secondo, dispositivi portatili o impiantati generano flussi prolungati che devono essere analizzati mentre arrivano.
+Le aritmie non sempre si manifestano durante una registrazione breve: ectopie isolate, pause o tachicardie parossistiche possono comparire a distanza di ore, rendendo insufficiente un'analisi puramente batch su archivi statici.
+Un sistema in grado di classificare ogni battito al momento dell'acquisizione consente di segnalare tempestivamente pattern anomali, riducendo il ritardo tra evento fisiologico e possibile intervento clinico.
+
+Dal punto di vista ingegneristico, il problema si colloca all'intersezione tra \textbf{signal processing}, \textbf{machine learning} e \textbf{ingegneria dei sistemi distribuiti}.
+La letteratura sulla classificazione automatica del MIT--BIH~\cite{moody2001impact,dechazal2004automatic} dimostra da decenni che modelli supervisionati su feature beat-level possono raggiungere accuratezze elevate; tuttavia, gran parte degli studi si concentra sulla fase di training e valutazione offline, senza integrare ingestion, messaggistica e persistenza in un'unica architettura operativa.
+Questa tesi colma, in parte, tale divario proponendo una pipeline che riproduce un ciclo di vita realistico del dato, dalla preparazione storica allo scoring in tempo quasi reale.
+
 \section{Approccio e scelte tecnologiche}\label{sec:approccio-e-scelte-tecnologiche}
 In questo lavoro si affronta il problema della classificazione di battiti ECG in un contesto di streaming, privilegiando un'architettura che consenta \textbf{disaccoppiamento} tra ingestion e processing, resilienza ai guasti e scalabilità orizzontale.
 
@@ -32,6 +41,11 @@ Questa combinazione consente di separare in modo netto la responsabilità di acq
 La scelta di una soluzione \emph{ibrida batch/streaming} risponde a un'esigenza precisa: i modelli predittivi possono essere addestrati su archivi storici con costi computazionali più elevati, mentre l'inferenza deve operare con latenza contenuta e comportamento deterministico.
 Il progetto adotta quindi una pipeline che riproduce un ciclo realistico di produzione dei dati, addestramento e serving, offrendo un contesto coerente per valutare non soltanto la qualità del classificatore, ma anche la solidità dell'infrastruttura sottostante.
 
+Un'alternativa avrebbe potuto consistere in un'architettura monolitica: un unico processo che legge il CSV, addestra il modello e classifica i battiti in memoria senza broker intermedi.
+Tale soluzione sarebbe più semplice da implementare, ma non permetterebbe di valutare proprietà fondamentali di un sistema distribuito, come il disaccoppiamento tra velocità di produzione e consumo, la tolleranza ai guasti del consumer e la persistenza transazionale dei risultati.
+Analogamente, l'adozione di un framework di serving dedicato (TensorFlow Serving, MLflow Model Serving) avrebbe spostato il focus verso l'inferenza a bassa latenza, sacrificando l'integrazione nativa con Spark per training e streaming analitico.
+La scelta dello stack Kafka--Spark--Delta risponde invece a un obiettivo didattico e di ricerca: dimostrare come tecnologie consolidate nel panorama Big Data possano essere composte in una pipeline coerente per dati biomedici strutturati, senza dipendere da servizi cloud proprietari.
+
 \section{Obiettivi}\label{sec:obiettivi}
 Gli obiettivi perseguiti sono i seguenti:
 \begin{enumerate}
@@ -42,6 +56,10 @@ Gli obiettivi perseguiti sono i seguenti:
   \item Valutare la qualità del modello con metriche di classificazione e analizzare \emph{latenze}, \emph{throughput} e comportamento del sistema al variare del volume dei messaggi.
 \end{enumerate}
 
+Gli obiettivi sono stati formulati in modo da coprire sia la dimensione \emph{funzionale} (il sistema deve classificare correttamente i battiti) sia quella \emph{non funzionale} (il sistema deve operare con latenza contenuta, recuperare da failure e restare comprensibile come architettura).
+La separazione tra training batch e inferenza streaming non è un vincolo imposto dal dataset, bensì una scelta progettuale che riflette la frequenza tipica di aggiornamento dei modelli in ambito clinico: il retraining avviene su scala di giorni o settimane, mentre l'inferenza deve procedere a ogni battito ricevuto.
+Analogamente, l'uso di un simulatore anziché di hardware reale consente di concentrare l'attenzione sull'integrazione software, lasciando aperte estensioni future verso dispositivi edge con firmware dedicato.
+
 \section{Contributi}\label{sec:contributi}
 Si elencano i contributi principali del lavoro:
 \begin{itemize}
@@ -51,6 +69,10 @@ Si elencano i contributi principali del lavoro:
   \item Analisi sperimentale completa della performance del modello (tramite \texttt{MulticlassClassificationEvaluator}) e delle proprietà non funzionali della pipeline, con attenzione a latenze, throughput e stabilità operativa.
   \item Formalizzazione di un caso di studio in cui una stessa architettura può essere riletta sia come sistema di prototipazione accademica sia come base per un futuro deployment in ambito e-Health.
 \end{itemize}
+
+Rispetto a implementazioni isolate di classificatori ECG presenti in letteratura, il contributo distintivo risiede nell'\textbf{integrazione end-to-end} piuttosto che nella ricerca del massimo score su un benchmark.
+Il lavoro documenta non solo il modello predittivo, ma anche le scelte di configurazione (checkpoint, \texttt{foreachBatch}, schema JSON dinamico), i trade-off architetturali (Lambda ibrida, mono-nodo vs cluster) e le implicazioni cliniche degli errori di classificazione.
+Questa impostazione rende la tesi utile come riferimento per chi deve progettare pipeline analitiche in ambito sanitario, dove la correttezza del flusso dati è tanto importante quanto l'accuratezza del classificatore.
 
 \section{Struttura della tesi}\label{sec:struttura-della-tesi}
 La trattazione è organizzata come segue:
@@ -63,3 +85,6 @@ La trattazione è organizzata come segue:
 \end{itemize}
 
 I sorgenti del repository (\texttt{EcgModelTrainer}, \texttt{EcgPatientSimulator}, \texttt{EcgStreamingPredictor}) sono richiamati nei capitoli di implementazione e risultati, così da legare teoria e codice effettivamente scritto.
+
+La progressione argomentativa segue un percorso dal generale al particolare: il Capitolo~\ref{ch:dominio-applicativo-e-dataset} fonda il problema nel dominio clinico e nel dataset scelto; il Capitolo~\ref{ch:lo-stack-tecnologico} giustifica le tecnologie; i Capitoli~\ref{ch:progettazione-e-architettura-del-sistema} e~\ref{ch:implementazione-e-dettagli-tecnici} descrivono rispettivamente la progettazione logica e i dettagli implementativi; il Capitolo~\ref{ch:analisi-dei-risultati-e-test} chiude il ciclo con la valutazione sperimentale.
+Dove possibile, ogni scelta tecnologica è collegata a un requisito esplicito, in modo che il lettore possa ricostruire il ragionamento progettuale senza dover inferire le motivazioni dalle sole configurazioni riportate nel codice.

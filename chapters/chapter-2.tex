@@ -8,6 +8,10 @@ Le API di Spark sono scritte in Scala; le trasformazioni su \texttt{Dataset} tip
 
 Il progetto adotta la versione \textbf{2.13.18} (\texttt{build.sbt}), con prefisso di package \texttt{it.utiu.thesis}, in linea con Spark 4.1.1 e con le ottimizzazioni delle collezioni della serie 2.13.
 
+La JVM offre inoltre un ecosistema maturo di librerie Java interoperabili: il simulatore utilizza direttamente \texttt{KafkaProducer} del client Apache Kafka, senza wrapper aggiuntivi.
+Questa interoperabilità è rilevante in contesti eterogenei dove alcuni componenti (sensori, gateway, servizi legacy) sono implementati in Java e devono integrarsi con job Spark in Scala.
+La gestione delle dipendenze tramite SBT risolve le versioni di Spark, Delta e Kafka in modo dichiarativo, riducendo i conflitti di classpath che spesso emergono in progetti Big Data multi-modulo.
+
 \subsection{Immutabilità, composizione e type system}
 
 Un principio ricorrente nel codice è l'uso di trasformazioni \emph{lazy} su \texttt{DataFrame} anziché mutazioni esplicite.
@@ -18,12 +22,19 @@ Nel dominio Spark, il vantaggio del type system emerge soprattutto con \texttt{D
 
 In un sistema con thread concorrenti (predictor in background, simulatore sul main thread), l'assenza di stato condiviso mutabile tra componenti riduce race condition e semplifica il ragionamento sul comportamento in failure.
 
+Il pattern matching di Scala si rivela utile anche nella gestione del ciclo di vita dell'applicazione.
+In \texttt{AppRunner}, la verifica dell'esistenza del modello su disco può essere espressa in modo dichiarativo, e il ramo di esecuzione che avvia il trainer è separato da quello che procede direttamente all'inferenza.
+Questa chiarezza strutturale riduce il rischio di errori logici rispetto a catene di \texttt{if-else} annidati, soprattutto quando il numero di componenti orchestrati cresce.
+
 \subsection{Confronto con alternative}
 
 PySpark offre una curva di apprendimento più rapida, ma ogni invocazione attraversa Py4J.
 Con un messaggio al secondo il costo è trascurabile; con centinaia di battiti al minuto per paziente e più stream paralleli, la latenza di bridging diventa misurabile.
 Java puro manca della concisione per esprimere pipeline dichiarative in poche righe.
 Scala resta, per questo progetto, il compromesso preferito: runtime JVM, API Spark native, codice batch e streaming nello stesso repository.
+
+Linguaggi come Python e R restano eccellenti per l'esplorazione dati e la prototipazione rapida di modelli, ma introducono un \emph{impedance mismatch} quando il deployment richiede integrazione nativa con Spark Streaming e Delta Lake su JVM.
+La scelta di Scala allinea il linguaggio di implementazione al runtime di esecuzione, eliminando il bridging Py4J e consentendo di condividere tipi e serializzatori tra training e inferenza senza conversioni intermedie.
 
 \section{Apache Spark: Core, Spark SQL e MLlib}\label{sec:spark}
 
@@ -35,6 +46,11 @@ Il progetto utilizza \textbf{Spark 4.1.1} con moduli \texttt{spark-core}, \textt
 Spark organizza il lavoro attorno a un \emph{driver} e a uno o più \emph{executor}.
 Il driver costruisce un DAG di \emph{stage}; ogni stage contiene task parallelizzabili su partizioni di dati.
 In \texttt{Config.scala}, \texttt{SPARK\_MASTER = "local[*]"} impiega tutti i core della macchina host su un singolo nodo: adeguato alla prototipazione, non rappresentativo di un cluster YARN, Kubernetes o Databricks.
+
+Il modello driver--executor si presta a una lettura intuitiva del flusso della pipeline.
+Il \emph{driver} ospita la \texttt{SparkSession}, costruisce i piani logici e coordina l'esecuzione; gli \emph{executor} eseguono i task sulle partizioni di dati.
+In modalità \texttt{local[*]}, driver e executor condividono la stessa JVM, il che semplifica il debug ma non permette di osservare il comportamento di rete e shuffle tipico di un cluster distribuito.
+Per il training su $\sim$80\,000 righe e per micro-batch di pochi record in streaming, questa configurazione è adeguata; il collo di bottiglia, come mostrato nel Capitolo~\ref{ch:analisi-dei-risultati-e-test}, risiede più nello scheduling dei micro-batch che nella capacità di parallelizzazione locale.
 
 \subsection{Spark SQL, Catalyst e Tungsten}\label{subsec:catalyst-tungsten}
 
@@ -53,6 +69,10 @@ Nel predictor, il parsing \texttt{from\_json} e la \texttt{transform} del modell
 
 \textbf{Tungsten}~\cite{neumann2011efficiently} completa Catalyst con esecuzione orientata alla CPU e alla memoria: gestione off-heap, formato binario columnar interno e \emph{whole-stage code generation}, che compila catene di operatori in un unico bytecode JVM.
 Su micro-batch ripetitivi (filtro, parsing JSON, proiezione colonne output), il codegen riduce il overhead per record rispetto a un interprete riga per riga.
+
+Nel predictor, la catena \texttt{from\_json} $\rightarrow$ \texttt{transform} $\rightarrow$ \texttt{select} viene ottimizzata come un unico piano fisico quando possibile.
+Catalyst può applicare \emph{column pruning}, evitando di materializzare colonne del payload JSON non utilizzate dal modello.
+Sebbene nel prototipo tutte le colonne del CSV transitino nel messaggio, in un'evoluzione con payload ridotto il pruning diventerebbe un vantaggio misurabile in termini di memoria e CPU per micro-batch.
 
 La Figura~\ref{fig:spark-query-flow} sintetizza il percorso dal codice applicativo all'esecuzione.
 
@@ -87,6 +107,12 @@ Rispetto a \textbf{TensorFlow/PyTorch}, MLlib non punta al deep learning end-to-
 \textbf{XGBoost4J-Spark} e \textbf{GBTClassifier} (MLlib) sono alternative plausibili per tabular data; Random Forest è stato preferito per integrazione nativa nella Pipeline, assenza di dipendenze aggiuntive e buona gestione di feature eterogenee senza scaling obbligatorio.
 La limitazione principale resta l'assenza di tuning sistematico (\texttt{CrossValidator}) nel prototipo, delegato a estensioni future.
 
+Random Forest, introdotto da Breiman~\cite{breiman2001random}, costruisce un insieme di alberi di decisione addestrati su bootstrap del training set e su sottoinsiemi casuali di feature.
+La predizione finale è ottenuta per voto di maggioranza (classificazione) o media (regressione).
+Rispetto a un singolo albero profondo, l'ensemble riduce la varianza e migliora la generalizzazione, a patto di un costo computazionale lineare nel numero di alberi.
+Nel contesto Spark, il training è distribuito: ogni executor costruisce subset di alberi su partizioni locali, e il driver aggrega il modello finale.
+Per il dataset MIT--BIH preprocessato, 100 alberi con profondità massima 15 rappresentano un compromesso tra accuratezza e tempo di addestramento su singola macchina.
+
 \subsection{Structured Streaming: semantica temporale e trigger}\label{subsec:structured-streaming}
 
 Structured Streaming tratta il flusso come tabella illimitata aggiornata nel tempo~\cite{armbrust2018structured}.
@@ -107,6 +133,10 @@ Per la tesi, il modello a micro-batch è accettabile: latenza end-to-end nell'or
 Nel componente \texttt{EcgStreamingPredictor}, Structured Streaming consuma Kafka, applica \texttt{pipelineModel.transform} e scrive su Delta tramite \texttt{foreachBatch}.
 Questa scelta consente logica custom (\texttt{persist}, \texttt{isEmpty}, logging) a fronte di una gestione più esplicita del sink rispetto a \texttt{format("delta")} nativo.
 
+Structured Streaming gestisce internamente lo stato del query plan e gli offset Kafka nel checkpoint.
+Dal punto di vista del programmatore, l'API rimane dichiarativa: si definisce la trasformazione e il sink, e il motore si occupa di schedulare micro-batch, gestire failure e garantire progressi.
+Questa astrazione riduce la complessità rispetto a consumer Kafka manuali, dove l'applicazione deve implementare esplicitamente commit degli offset, gestione dei rebalance e recovery dopo crash.
+
 \section{Apache Kafka: architettura publish-subscribe e disaccoppiamento}\label{sec:kafka}
 
 Apache Kafka organizza la messaggistica attorno a \emph{topic}, \emph{partizioni} e \emph{offset}~\cite{kreps2011kafka,kleppmann2017designing}.
@@ -119,6 +149,10 @@ Più consumer possono rileggere lo stesso flusso a offset diversi (inferenza rea
 
 Nel progetto, \texttt{ecg-input-stream} bufferizza tra \texttt{EcgPatientSimulator} e \texttt{EcgStreamingPredictor}: il producer può inviare un battito al secondo mentre Spark elabora micro-batch con latenza variabile, senza vincolare le due velocità.
 
+Il modello log-centrico di Kafka~\cite{kreps2011kafka,kleppmann2017designing} si distingue dalle code tradizionali per la persistenza duratura dei messaggi e la possibilità di rilettura.
+Un consumer che cade può riprendere dall'ultimo offset committato senza perdere eventi già scritti nel log; un nuovo consumer può partire da \texttt{earliest} per riprocessare l'intera storia del topic.
+Questa proprietà è fondamentale in pipeline analitiche dove lo stesso flusso può alimentare inferenza real-time, job di riaddestramento e audit batch, senza duplicare l'infrastruttura di ingestion.
+
 \subsection{Partizioni, consumer group e parallelismo}
 
 Una \textbf{partizione} è l'unità di ordinamento e parallelismo: i record con la stessa chiave finiscono nella stessa partizione, preservando l'ordine per chiave.
@@ -126,6 +160,11 @@ Il numero massimo di consumer attivi in un gruppo che leggono in parallelo un to
 Con una sola partizione (default in sviluppo), il throughput di consumo Spark resta limitato a un task per micro-batch; aumentare le partizioni e \texttt{spark.default.parallelism} è il primo passo verso scaling orizzontale.
 
 Structured Streaming gestisce internamente gli offset Kafka nel checkpoint: al restart, riprende dall'ultimo offset committato insieme al batch Delta, non dal solo puntatore del consumer Java.
+
+La scelta della chiave di partizionamento influenza l'ordinamento e il parallelismo.
+Nel simulatore, la chiave \texttt{beat-\{index\}} è arbitraria e non garantisce co-locazione per paziente o sessione.
+In produzione, si userebbe tipicamente l'identificativo del paziente o del dispositivo come chiave, così tutti i battiti di uno stesso soggetto finiscono nella stessa partizione e mantengono l'ordine temporale.
+Questo è rilevante per analisi che richiedono sequenze ordinate, come il rilevamento di raffiche ectopiche consecutive.
 
 \subsection{Modalità KRaft e deprecazione di ZooKeeper}
 
@@ -162,6 +201,9 @@ Kafka supporta:
 
 Spark Structured Streaming, con checkpoint e sink idempotente, punta a \textbf{exactly-once a livello di micro-batch}: ogni batch è processato una volta anche dopo restart del driver, a patto che la scrittura su Delta e il commit degli offset avvengano nella stessa transazione logica del batch.
 Duplicati a livello di \emph{business key} (\texttt{record}) restano possibili se si riesegue l'intero esperimento senza deduplicazione: argomento ripreso nel Capitolo~\ref{ch:progettazione-e-architettura-del-sistema}.
+
+Per il prototipo, la garanzia \textbf{at-least-once} di Kafka combinata con checkpoint Spark e append Delta è sufficiente a garantire che nessun messaggio venga perso dopo un restart, accettando la possibilità di duplicati a livello di business key se l'esperimento viene ripetuto senza pulizia del checkpoint.
+L'exactly-once transazionale nativo di Kafka (EOS) richiederebbe producer idempotenti e consumer transazionali, con overhead aggiuntivo non giustificato in un ambiente di laboratorio single-node.
 
 \section{Delta Lake: il paradigma Data Lakehouse}\label{sec:delta-lake}
 
@@ -202,6 +244,10 @@ Il progetto registra le estensioni Delta nella \texttt{SparkSession}:
 La stessa configurazione compare in \texttt{EcgModelTrainer} e \texttt{EcgStreamingPredictor}; solo il predictor scrive su \texttt{spark-warehouse/ecg\_predictions}.
 Il checkpoint Spark risiede in \texttt{spark-warehouse/checkpoints/ecg\_predictions}: separare metadati di offset da dati di business è buona pratica operativa.
 
+Il paradigma \emph{Lakehouse}~\cite{armbrust2020delta} unifica i vantaggi del data lake (flessibilità, costi di storage ridotti su object store) e del data warehouse (ACID, schema enforcement, query SQL performanti).
+Per dati clinici, dove audit e immutabilità sono requisiti ricorrenti, Delta Lake offre un compromesso attraente rispetto a Parquet puro o a database relazionali tradizionali per carichi di scrittura ad alta frequenza.
+Le predizioni ECG, appendate transazionalmente a ogni micro-batch, formano un log interrogabile con Spark SQL o strumenti BI, senza dover esportare verso un warehouse separato.
+
 \section{Sintesi: requisiti e tecnologie adottate}\label{sec:sintesi-stack}
 
 La Tabella~\ref{tab:requisiti-tecnologie} collega i requisiti dell'introduzione alle scelte tecnologiche.
@@ -227,3 +273,7 @@ La Tabella~\ref{tab:requisiti-tecnologie} collega i requisiti dell'introduzione 
 \end{longtable}
 
 Nel capitolo seguente queste tecnologie sono organizzate in moduli e flussi dati concreti, orchestrati da \texttt{AppRunner}.
+
+La Tabella~\ref{tab:requisiti-tecnologie} evidenzia come ogni requisito non funzionale enunciato nell'introduzione trovi una risposta tecnologica concreta.
+Il disaccoppiamento è ottenuto da Kafka; la fault tolerance da checkpoint Spark e transazioni Delta; la scalabilità da partizioni Kafka e parallelismo Spark; l'unificazione batch/streaming da Scala e Spark come runtime condiviso.
+Questa coerenza riduce il numero di tecnologie da operare in produzione e semplifica il debugging, poiché training e inferenza condividono configurazione, formato dati e artefatto modello.

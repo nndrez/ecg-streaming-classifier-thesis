@@ -37,6 +37,9 @@ Il classificatore è Random Forest con \texttt{numTrees=100}, \texttt{maxDepth=1
 
 Per la valutazione clinica si fa riferimento allo standard AAMI EC57:2012~\cite{aami2012ec57}, che raggruppa le etichette beat-level in cinque super-classi: N (normali e bundle branch block), S (supraventricolari), V (ventricolari), F (fusion), Q (non classificabili).
 
+Il protocollo distingue due livelli di valutazione: le metriche di classificazione sono calcolate sul test set hold-out del trainer batch (20\% del dataset, non visti durante il fit), mentre latenza e throughput sono misurati sul flusso streaming generato dal simulatore.
+Questa separazione riflette il ciclo di vita reale di un sistema ML: il modello è validato offline prima del deploy, e le proprietà operative sono verificate in condizioni di serving con messaggi in arrivo da Kafka.
+
 \subsection{Procedura di esecuzione}
 
 \begin{enumerate}
@@ -46,6 +49,11 @@ Per la valutazione clinica si fa riferimento allo standard AAMI EC57:2012~\cite{
   \item Raccolta log da console Spark e ispezione directory Delta \texttt{spark-warehouse/ecg\_predictions}.
 \end{enumerate}
 
+\subsection{Criteri di successo}
+
+Si considera soddisfacente il prototipo se: (i)~l'accuratezza sul test set supera il 90\%, coerente con la letteratura sul MIT--BIH; (ii)~la latenza end-to-end media resta sotto il secondo con rate di 1 msg/s; (iii)~nessun messaggio viene perso dopo restart con checkpoint intatto; (iv)~le predizioni sono persistite su Delta in modo interrogabile con Spark SQL.
+Questi criteri bilanciano qualità predittiva e proprietà non funzionali, evitando di valutare il sistema solo sull'accuratezza isolata.
+
 \section{Performance del modello}\label{sec:performance-modello}
 
 \subsection{Accuratezza globale}
@@ -53,6 +61,9 @@ Per la valutazione clinica si fa riferimento allo standard AAMI EC57:2012~\cite{
 % TODO: sostituire con valore reale da MulticlassClassificationEvaluator
 Sul test set (20\% del dataset), il modello Random Forest ha raggiunto un'accuratezza globale del \textbf{96,4\%} (valore provvisorio).
 Il valore è coerente con la letteratura su classificatori ensemble applicati al MIT-BIH~\cite{breiman2001random,moody2001impact}, dove accuratezze tra 95\% e 98\% sono frequenti quando le feature sono ingegnerizzate a livello di battito.
+
+L'accuratezza globale aggrega performance su classi con supporto molto disomogeneo: la classe N domina il test set, e un errore su N ha peso numerico maggiore di un errore su F o Q.
+Per questo motivo, le metriche per-classe della Tabella~\ref{tab:metriche-classe} e l'F1-score della Figura~\ref{fig:f1-per-classe} offrono una lettura più equilibrata, in linea con le raccomandazioni AAMI EC57~\cite{aami2012ec57} che richiedono valutazione separata per super-classe.
 
 \subsection{Metriche per super-classe AAMI}
 
@@ -114,6 +125,12 @@ L'accuratezza globale da sola è insufficiente in ambito clinico, come discusso 
 Un modello che classifica tutto come ``normale'' otterrebbe alta accuratezza sul file MIT--BIH preprocessato, dove la classe \texttt{N} supera l'89\% dei battiti, ma fallirebbe sulle aritmie patologiche.
 Per questo motivo l'analisi privilegia recall e F1 sulle classi V e S.
 
+\subsection{Confronto con la letteratura}
+
+Studi su feature beat-level simili a quelle del CSV Kaggle~\cite{dechazal2004automatic,sakib2021edge} riportano sensibilità e specificità per super-classe AAMI spesso superiori al 90\% per le classi N e V, con performance più variabili su S e F.
+I valori provvisori di questa tesi si collocano in tale intervallo per N e V, con margini di miglioramento evidenti su S, F e Q.
+La differenza rispetto a lavori che ottimizzano esclusivamente il classificatore può dipendere dall'assenza di tuning degli iperparametri, dal ribilanciamento delle classi e dalla validazione incrociata per soggetto (\emph{patient-wise split}), che evita leakage tra battiti della stessa registrazione.
+
 \section{Analisi degli errori e impatto clinico}\label{sec:analisi-errori}
 
 Le metriche numeriche del Capitolo~\ref{sec:performance-modello} vanno lette insieme al contesto d'uso.
@@ -159,6 +176,12 @@ Strategie non implementate nel prototipo ma rilevanti in un'evoluzione clinica:
 Il trade-off precision/recall non è universale: la telemetria domiciliare privilegia la specificità (meno allarmi notturni inutili), mentre in UTI può prevalere la sensibilità.
 Il prototipo non espone soglie configurabili per classe: usa l'argmax implicito del Random Forest, lasciando al deployment futuro la calibrazione per scenario.
 
+\subsection{Prioritizzazione degli alert}
+
+In un sistema operativo, non tutti gli errori di classificazione hanno la stessa urgenza.
+Un falso negativo su una singola PVC isolata in un Holter ambulatoriale ha impatto diverso da un falso negativo su una raffica di ectopie ventricolari in un paziente post-infarto.
+La pipeline attuale classifica battito per battito senza aggregare eventi in finestre temporali; un'estensione naturale consisterebbe in una fase di post-processing che raggruppa predizioni consecutive (es.\ tre V in 10 secondi) prima di generare un alert, riducendo il rumore e allineando l'output al ragionamento clinico.
+
 \section{Analisi della latenza}\label{sec:analisi-latenza}
 
 \subsection{Definizione end-to-end}
@@ -196,6 +219,12 @@ L'attesa di 15 secondi in \texttt{AppRunner} prima dell'avvio del simulatore int
 Al primo avvio, Spark Streaming impiega tempo aggiuntivo per inizializzare il query plan e connettersi a Kafka.
 Nei run successivi, con checkpoint esistente, il warmup si riduce.
 
+\subsection{Confronto con requisiti clinici}
+
+Per monitoraggio in reparto o in terapia intensiva, latenze sotto i 500~ms sono spesso citate come target per allarmi critici.
+I valori stimati in Tabella~\ref{tab:latenza}, con mediana nell'ordine di centinaia di millisecondi, sono compatibili con scenari \emph{near-real-time} ma non con applicazioni che richiedono latenza sub-100~ms (ad esempio defibrillazione automatica o pacing).
+La distinzione è importante: la pipeline è adeguata a screening e prioritizzazione, non a controllo closed-loop su singolo battito.
+
 \section{Throughput e back-pressure}\label{sec:throughput}
 
 \subsection{Misura in condizioni nominali}
@@ -215,6 +244,13 @@ Structured Streaming applica back-pressure nativo: se il consumer non riesce a t
 Nel setup attuale, con 1 msg/s, il lag resta nullo.
 Test di stress con rate superiori (10, 100, 1000 msg/s) costituirebbero un'estensione naturale dell'evaluazione.
 
+\subsection{Stima del carico multi-paziente}
+
+Un singolo paziente con frequenza cardiaca media di 70 bpm genera circa 1,2 battiti al secondo.
+Cento pazienti monitorati simultaneamente implicherebbero $\sim$120 msg/s, ancora entro la stima provvisoria di throughput del predictor su singolo nodo.
+Mille pazienti ($\sim$1200 msg/s) richiederebbero quasi certamente un cluster Spark con più executor e un topic Kafka con decine di partizioni.
+Questi ordini di grandezza illustrano come il prototipo a 1 msg/s sia rappresentativo dell'architettura ma non del carico operativo di un servizio e-Health su larga scala.
+
 \section{Scalabilità}\label{sec:scalabilita}
 
 \subsection{Limiti del benchmark mono-nodo}
@@ -233,6 +269,12 @@ In un deployment distribuito, i componenti scalerebbero in modo indipendente:
 
 Il trainer batch beneficerebbe di più core e memoria per il fit del Random Forest su dataset completi (non limitati a CSV preprocessati).
 Il simulatore andrebbe sostituito da producer reali o da tool di load testing (Kafka \texttt{kafka-producer-perf-test}).
+
+\subsection{Costi di scaling}
+
+L'aggiunta di executor Spark e broker Kafka comporta costi infrastrutturali (CPU, memoria, storage, banda) che crescono sub-linearimente se il partitioning è calibrato correttamente.
+Delta su object store scala lo storage in modo elastico, ma le scritture frequenti di micro-batch piccoli possono generare molti file Parquet di dimensione ridotta, richiedendo periodicamente \texttt{OPTIMIZE} per mantenere prestazioni di query accettabili.
+Questi aspetti operativi, trascurati nel prototipo, diventano centrali in un deployment con migliaia di pazienti e retention di predizioni su mesi o anni.
 
 \section{Riproducibilità}\label{sec:riproducibilita}
 
@@ -257,3 +299,10 @@ accuratezza globale $\sim$96\%, latenza end-to-end sub-secondo nel caso medio, t
 Le classi rare (F, Q) restano il punto debole, coerentemente con lo sbilanciamento del MIT-BIH.
 
 Le metriche definitive sostituiranno i placeholder contrassegnati in questo capitolo e alimenteranno la discussione conclusiva.
+
+\subsection{Limiti della valutazione sperimentale}
+
+La valutazione presentata copre il classificatore batch sul test set e le proprietà non funzionali della pipeline streaming con carico ridotto.
+Non è stata eseguita validazione incrociata per soggetto (split per \texttt{record}), che eviterebbe che battiti della stessa registrazione compaiano sia in training che in test, gonfiando leggermente le metriche.
+Non sono stati confrontati modelli alternativi (GBT, SVM) sullo stesso split, né è stata misurata la latenza con strumenti di profiling dedicati (solo stime da log e decomposizione qualitativa).
+Questi limiti sono coerenti con l'obiettivo della tesi --- dimostrare l'integrazione end-to-end --- ma delimitano il campo di applicabilità delle conclusioni numeriche.

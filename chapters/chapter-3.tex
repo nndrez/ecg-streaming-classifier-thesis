@@ -58,6 +58,10 @@ La configurazione è vicina alla Lambda con confine netto training/serving, prat
 Rispetto alla Kappa pura, manca la possibilità di riaddestrare rileggendo soltanto Kafka: il training legge CSV storici, non il topic.
 Rispetto alla Lambda pura, manca un serving layer che fondo viste batch e real-time; le predizioni sono scritte direttamente su Delta Lake dal predictor.
 
+La letteratura sui sistemi ML in produzione~\cite{sculley2015hidden} evidenzia come la separazione tra training e serving sia una delle fonti principali di \emph{technical debt}: pipeline di feature engineering diverse, versioni di librerie non allineate, assenza di monitoraggio del drift.
+Il progetto mitiga parte di questo rischio usando la stessa \texttt{PipelineModel} serializzata per batch e streaming, e lo stesso schema JSON derivato dal CSV di training.
+Restano tuttavia gap noti: nessun registry versionato del modello, nessun monitoraggio automatico della distribuzione delle feature in ingresso, nessun meccanismo di rollback se un nuovo modello degrada le metriche.
+
 \section{Panoramica della pipeline}\label{sec:panoramica-pipeline}
 
 La pipeline si articola in tre moduli funzionali e un orchestratore:
@@ -107,6 +111,16 @@ La Figura~\ref{fig:architettura-logica} mostra il flusso logico dei dati; la Fig
 In sintesi: il trainer costruisce il modello da CSV; il simulatore pubblica JSON su Kafka; il predictor deserializza, classifica e appende su Delta con checkpoint.
 Il dettaglio implementativo (listing, \texttt{foreachBatch}, configurazione) è nel Capitolo~\ref{ch:implementazione-e-dettagli-tecnici}.
 Il modello ML (\texttt{PipelineModel.load}) è l'unico artefatto condiviso tra batch e streaming.
+
+\paragraph{Formato del messaggio Kafka.}
+Ogni record pubblicato dal simulatore è una stringa JSON che serializza una riga del CSV: identificativo \texttt{record}, etichetta \texttt{type} (ground truth disponibile per valutazione, ma non usata in inferenza), e le 32 feature numeriche con prefissi \texttt{0\_} e \texttt{1\_}.
+Il consumer Spark non riceve metadati Kafka aggiuntivi oltre a \texttt{key}, \texttt{value}, \texttt{timestamp} e \texttt{partition}; la logica applicativa opera esclusivamente sul campo \texttt{value} parsato.
+In un deployment reale, si potrebbe arricchire il payload con timestamp di acquisizione sul dispositivo, identificativo paziente pseudonimizzato e versione del firmware di estrazione feature, campi assenti nel prototipo ma utili per tracciabilità e debug.
+
+\paragraph{Persistenza delle predizioni.}
+Ogni micro-batch processato produce righe Delta con colonne \texttt{record}, \texttt{true\_label}, \texttt{prediction} e \texttt{probability}.
+La colonna \texttt{true\_label} deriva dal campo \texttt{type} del messaggio JSON e consente valutazione ex post confrontando predizione e etichetta reale, senza richiedere un join con il dataset di training.
+La colonna \texttt{probability} contiene il vettore di probabilità per classe, utile per analisi di calibrazione o per soglie operative diverse dall'argmax implicito del classificatore.
 
 \begin{figure}[H]
   \centering
@@ -169,6 +183,10 @@ Un crash del host interrompe l'intera pipeline.
 In produzione: cluster Spark dedicato, Kafka multi-broker con RF$\geq$3, Delta su object store (S3, ADLS).
 Il setup attuale è deliberatamente minimalista per dimostrare l'integrazione end-to-end.
 
+Un deployment distribuito tipico separerebbe i ruoli in modo più netto: il trainer girerebbe su un cluster Spark dedicato o su un servizio schedulato (Databricks, EMR); il predictor su un cluster streaming con executor sempre attivi; Kafka su un cluster multi-broker con replication factor $\geq 3$; Delta su object store (S3, Azure Data Lake Storage) con accesso da più job.
+Il filesystem locale usato nel prototipo per modello e predizioni è un sostituto didattico dello storage condiviso, ma non offre durabilità né condivisione tra nodi.
+La Figura~\ref{fig:deployment} va letta come vista \emph{as-is} del laboratorio, non come target di produzione.
+
 \section{Fase di addestramento: \texttt{EcgModelTrainer}}\label{sec:ecg-model-trainer}
 
 Il modulo batch implementa il ciclo completo di machine learning supervisionato.
@@ -200,6 +218,11 @@ Non è implementata nel codice attuale, ma resta un'estensione naturale per migl
 
 \textbf{Cross-validation.} MLlib espone \texttt{CrossValidator} e \texttt{TrainValidationSplit} per grid search su \texttt{numTrees} e \texttt{maxDepth}.
 Non sono stati usati: il focus della tesi è l'integrazione streaming, e il dataset preprocessato ha dimensione moderata; un tuning sistematico migliorerebbe la generalizzazione a costo di tempi di sperimentazione molto più lunghi.
+
+Il flusso di training può essere eseguito indipendentemente dal resto della pipeline.
+Se il modello esiste già in \texttt{ML\_MODEL\_PATH}, \texttt{AppRunner} salta la fase di addestramento e procede direttamente all'inferenza.
+Questa logica condizionale consente di iterare rapidamente sul predictor e sul simulatore senza ripetere il fit del Random Forest, riducendo i tempi di sviluppo.
+In produzione, il training sarebbe schedulato (notturno, settimanale) e il predictor caricherebbe sempre l'ultima versione validata dal registry, non un path statico sul filesystem locale.
 
 \subsection{Output del trainer}
 
@@ -234,6 +257,10 @@ Estensioni naturali: intervallo casuale gaussiano intorno alla frequenza cardiac
 
 \texttt{.collect()} materializza 1000 record sul driver: accettabile in demo, inaccettabile per flussi continui.
 Questi limiti sono consapevoli e discussi nelle conclusioni.
+
+Il simulatore legge dal CSV le prime 1000 righe nell'ordine in cui compaiono nel file, senza mescolamento casuale né campionamento stratificato per classe.
+Ciò implica che la sequenza di messaggi Kafka riflette la distribuzione locale del file, non necessariamente quella globale del dataset.
+Per test di stress o per valutare il comportamento su classi rare, si potrebbe filtrare il CSV prima della pubblicazione o aumentare il limite, accettando tempi di esecuzione più lunghi proporzionali al rate di 1 msg/s.
 
 \section{Inferenza in tempo reale: \texttt{EcgStreamingPredictor}}\label{sec:ecg-streaming-predictor}
 
@@ -301,12 +328,20 @@ Checkpoint + append idempotente su Delta garantisce exactly-once a livello di mi
 
 L'attesa di 15 secondi è un'euristica che evita che i primi messaggi arrivino prima che la query streaming sia attiva; in produzione andrebbe sostituita da health-check (\texttt{isActive}, connettività Kafka, readiness del consumer group).
 
+\texttt{AppRunner} rappresenta il punto di ingresso unico dell'applicazione (\texttt{sbt run}).
+La sequenza di avvio riflette dipendenze logiche: il modello deve esistere prima che il predictor possa caricarlo; il predictor deve essere attivo prima che il simulatore inizi a pubblicare, altrimenti i primi messaggi potrebbero accumularsi nel topic senza essere consumati immediatamente.
+Il thread demone del predictor garantisce che la JVM non termini quando il main thread completa il simulatore, ma resta in attesa di \texttt{awaitAnyTermination} fino a interruzione esplicita o fine dello stream.
+In assenza di \texttt{join()}, il programma chiuderebbe la JVM mentre la query streaming è ancora in esecuzione, perdendo predizioni non ancora scritte su Delta.
+
 \section{Requisiti non funzionali}\label{sec:requisiti-nf}
 
 \subsection{Disaccoppiamento}
 
 Kafka isola producer e consumer: il simulatore può terminare dopo 1000 messaggi mentre il predictor consuma il backlog.
 Il trainer batch è indipendente dal flusso streaming, eseguibile on-demand o schedulato (cron, Airflow).
+
+Il disaccoppiamento temporale è particolarmente utile in scenari di manutenzione: è possibile fermare il predictor per aggiornare il modello o modificare la configurazione Spark senza interrompere l'acquisizione sul dispositivo edge, che continua a pubblicare sul topic fino al raggiungimento della retention configurata.
+Analogamente, un picco di carico sul predictor non si propaga al producer, che opera a velocità indipendente.
 
 \subsection{Idempotenza e consistenza}
 
@@ -334,5 +369,11 @@ Senza observability strutturata, diagnosticare colli di bottiglia o drift operat
 L'istanza Kafka in Docker espone \texttt{PLAINTEXT} su localhost: nessuna autenticazione SASL, nessun TLS.
 I dati ECG, anche come feature, sono informazioni sanitarie sensibili: un deployment reale richiederebbe cifratura in transito (TLS tra edge, broker e Spark), controllo accessi al topic, cifratura at-rest su Delta e policy di retention allineate al GDPR.
 Il prototipo accademico omette questi controlli per ridurre la frizione sperimentale; vanno elencati esplicitamente come gap verso un sistema clinicamente deployabile.
+
+\subsection{Manutenibilità e modularità}
+
+La separazione in package \texttt{batch}, \texttt{streaming} e \texttt{utils} consente di modificare un componente senza ricompilare l'intero progetto, purché i contratti (\texttt{Config}, schema JSON, path del modello) restino stabili.
+Ogni modulo espone un \texttt{main} indipendente, eseguibile separatamente per debug: il trainer senza simulatore, il predictor con messaggi già presenti nel topic, il simulatore senza consumer attivo.
+Questa modularità facilita lo sviluppo incrementale e la diagnosi di failure isolati, riducendo il tempo necessario per identificare quale stadio della pipeline introduce un errore.
 
 Il Capitolo~\ref{ch:implementazione-e-dettagli-tecnici} approfondisce configurazione e codice; il Capitolo~\ref{ch:analisi-dei-risultati-e-test} raccoglie le misure sperimentali.

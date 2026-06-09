@@ -62,11 +62,6 @@
 
 \graphicspath{{images/}}
 
-\newenvironment{abstract}%
-  {\clearpage\null\vfill\begin{center}%
-    \bfseries\abstractname\end{center}}%
-  {\vfill\null}
-
 \setlength\parskip{\baselineskip}
 
 \pagestyle{fancy}
@@ -98,12 +93,14 @@
     \thispagestyle{empty}
     \cleardoublepage
 
-    \thispagestyle{empty}
+    \cleardoublepage
+    \chapter*{Sommario}
+    \addcontentsline{toc}{chapter}{Sommario}
+    \label{ch:sommario}
     \input{chapters/abstract}
 
-    \newpage
-    \thispagestyle{empty}
-
+    \cleardoublepage
+    \setcounter{tocdepth}{1}
     \tableofcontents
     \listoffigures
     \listoftables

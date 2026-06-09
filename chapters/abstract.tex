@@ -1,4 +1,3 @@
-\begin{abstract}
 Si presenta un sistema per la classificazione \emph{near-real-time} di flussi ECG (elettrocardiogramma) basato su un approccio \textbf{ibrido batch/streaming}.
 
 Il problema è affrontato come una pipeline di decisione distribuita nella quale l'addestramento del modello avviene in modo \emph{off-line} su dati storici, mentre l'inferenza è eseguita su eventi in arrivo con vincoli di latenza compatibili con scenari di monitoraggio continuo.
@@ -22,4 +21,5 @@ La valutazione sperimentale adotta il \texttt{MulticlassClassificationEvaluator}
 Accanto alla qualità predittiva, si discutono \emph{latenze end-to-end}, \emph{throughput} e comportamento della pipeline in presenza di componenti disaccoppiati, evidenziando il ruolo della messaggistica asincrona e dello storage transazionale.
 
 I capitoli sui risultati e sulle conclusioni discutono metriche, latenza e limiti del prototipo; tra le estensioni possibili figurano modelli deep sul segnale raw, feature su edge device e dashboard su Delta Lake.
-\end{abstract}
+
+Il contributo principale risiede nell'integrazione end-to-end di componenti disaccoppiati (simulatore edge, broker Kafka, Spark Structured Streaming, Delta Lake) in un unico repository Scala riproducibile, con attenzione alle implicazioni cliniche degli errori di classificazione e alle proprietà non funzionali richieste da scenari di monitoraggio cardiaco continuo.
