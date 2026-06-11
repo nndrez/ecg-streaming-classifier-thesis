@@ -365,28 +365,41 @@ Analogamente, un picco di carico sul predictor non si propaga al producer, che o
 
 Delta Lake append con checkpoint Spark produce un log immutabile di predizioni.
 Ripetere l'esperimento con gli stessi dati genera righe duplicate (non idempotenza su \texttt{record}); un \texttt{MERGE} Delta su chiave risolverebbe il problema.
+In termini concreti, l'idempotenza della pipeline dipende dal checkpoint di Structured Streaming: se il predictor si arresta e viene riavviato, Spark riprende dall'ultimo offset committato, evitando la rielaborazione dei micro-batch già scritti su Delta.
+Il log append-only di Delta Lake consente comunque di rilevare eventuali duplicati a posteriori tramite query SQL sulla colonna \texttt{record}, anche senza ricorrere a \texttt{MERGE}.
+In ambito clinico, la tracciabilità completa di ogni predizione --- incluse eventuali ripetizioni --- può risultare preferibile rispetto a una deduplicazione silenziosa, poiché garantisce che nessun risultato venga scartato senza possibilità di audit.
 
 \subsection{Scalabilità}
 
 La scalabilità orizzontale passa dal parallelismo delle partizioni Kafka e dal numero di executor Spark.
 Con topic a partizione singola, il consumo resta serializzato; aumentare partizioni e parallelismo sblocca throughput superiore, come stimato nel Capitolo~\ref{ch:analisi-dei-risultati-e-test}.
+Ogni partizione Kafka viene assegnata ad al più un task Spark per micro-batch: il grado di parallelismo effettivo è quindi limitato dal minimo tra il numero di partizioni e il numero di core disponibili negli executor.
+La configurazione a partizione singola adottata nel prototipo serializza il consumo, ma preserva l'ordine temporale dei messaggi all'interno della partizione, proprietà rilevante quando la sequenza dei campioni ECG ha significato clinico.
+Con un partizionamento basato sull'identificativo del paziente, flussi provenienti da dispositivi diversi potrebbero essere elaborati in parallelo, mantenendo al contempo l'ordinamento per-paziente necessario alla corretta ricostruzione del segnale.
 
 \subsection{Evolvibilità dello schema}
 
 L'approccio JSON implicito è fragile: Delta può evolvere lo schema in append, ma \texttt{from\_json} fallisce su tipi incompatibili o campi obbligatori mancanti.
 Formati schema-first (Avro, Protobuf) e Registry mitigano il rischio.
+Se, ad esempio, una nuova versione del firmware aggiungesse una colonna al payload JSON, \texttt{from\_json} con lo schema precedente scarterebbe silenziosamente il campo aggiuntivo; viceversa, la rimozione di un campo produrrebbe valori null nella colonna corrispondente.
+Il rischio principale è che il modello si attende 32 feature numeriche: un cambiamento dello schema potrebbe introdurre null che degradano le predizioni senza generare errori espliciti, poiché \texttt{setHandleInvalid("keep")} nel \texttt{VectorAssembler} gestisce i valori mancanti in modo silente.
+Un formato schema-first intercetterebbe la discrepanza già in fase di deserializzazione, rendendo il problema visibile prima che raggiunga il modello.
 
 \subsection{Observability}
 
 Il prototipo si affida a log su console (\texttt{println}, \texttt{show} nei batch) e alla Spark UI locale.
 In produzione servirebbero metriche esportate (throughput consumer, lag Kafka, latenza micro-batch, error rate parsing) verso Prometheus/Grafana o equivalenti cloud, con tracing distribuito per correlare \texttt{batchId} e offset.
 Senza observability strutturata, diagnosticare colli di bottiglia o drift operativo resta difficile oltre la demo controllata.
+A titolo di esempio, il monitoraggio del consumer lag di Kafka --- la differenza tra l'offset più recente nel topic e l'offset dell'ultimo messaggio consumato --- consentirebbe di verificare in tempo reale se il predictor mantiene il passo con l'ingestione; un lag crescente segnalerebbe backpressure o un collo di bottiglia nella fase di inferenza.
+Spark espone l'interfaccia \texttt{StreamingQueryListener}, che notifica per ogni micro-batch metriche quali tempo di elaborazione, numero di righe in ingresso e aggiornamenti di stato; tali dati potrebbero essere inoltrati a un sistema di monitoraggio esterno senza alterare la logica applicativa della pipeline.
 
 \subsection{Sicurezza}
 
 L'istanza Kafka in Docker espone \texttt{PLAINTEXT} su localhost: nessuna autenticazione SASL, nessun TLS.
 I dati ECG, anche come feature, sono informazioni sanitarie sensibili: un deployment reale richiederebbe cifratura in transito (TLS tra edge, broker e Spark), controllo accessi al topic, cifratura at-rest su Delta e policy di retention allineate al GDPR.
 Il prototipo accademico omette questi controlli per ridurre la frizione sperimentale; vanno elencati esplicitamente come gap verso un sistema clinicamente deployabile.
+Nel prototipo, tutto il traffico transita esclusivamente sulla rete Docker locale (localhost), circostanza che limita la superficie di attacco alla macchina host; in un deployment multi-host, il traffico Kafka non cifrato esporrebbe le feature ECG sulla rete, rendendole intercettabili.
+I file Delta Lake su filesystem locale ereditano i controlli di accesso del sistema operativo, ma non dispongono di autorizzazione a grana fine --- ad esempio a livello di riga o di colonna --- che un sistema clinico richiederebbe per garantire che solo il personale autorizzato possa accedere ai dati di specifici pazienti o a determinate classi di predizioni.
 
 \subsection{Manutenibilità e modularità}
 

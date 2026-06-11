@@ -145,17 +145,15 @@ La pipeline prevede: (i)~filtraggio passa-banda; (ii)~derivata per enfatizzare l
 La robustezza dipende dalla calibrazione delle soglie e dalla qualità del tracciato: in presenza di aritmie con morfologie atipiche, un detector generico può richiedere post-processing o regole cliniche aggiuntive.
 
 \paragraph{Indice di qualità del segnale.}
-Per evitare che artefatti di movimento o contatto degradino le feature, si adottano \emph{Signal Quality Index} (SQI) che combinano metriche nel dominio del tempo, della frequenza o della forma d'onda~\cite{li2013sqi}.
+Gli artefatti più frequenti in acquisizioni ambulatoriali includono interferenza elettromagnetica, contatto instabile degli elettrodi, movimenti del paziente e saturazione dell'amplificatore.
+Ciascuno di questi fenomeni può distorcere le ampiezze delle onde o introdurre picchi spuri che un detector QRS interpreta come battiti aggiuntivi.
+Per evitare che tali artefatti degradino le feature, si adottano \emph{Signal Quality Index} (SQI) che combinano metriche nel dominio del tempo, della frequenza e della forma d'onda~\cite{li2008sqi}.
 Battiti associati a tratti di segnale con SQI insufficiente possono essere scartati, marcati come \emph{unknown} o inviati su un canale di quarantena, riducendo la propagazione di errori verso il classificatore.
 In una pipeline distribuita, questa valutazione ha anche valenza architetturale: filtrare a monte significa trasmettere verso il broker solo eventi affidabili e alleggerire il carico del livello streaming.
+Nel flusso sperimentale di questa tesi, la qualità del segnale è implicitamente garantita dal preprocessing offline che ha prodotto il CSV Kaggle; in un deployment reale, la valutazione SQI andrebbe integrata nel percorso edge prima della pubblicazione su Kafka.
 
 Il preprocessing può dunque essere letto come \textbf{normalizzazione semantica}: il segnale fisiologico diventa una rappresentazione tabellare allineata al modello ML.
 In produzione, la fase può risiedere sul dispositivo wearable o su un gateway, così da inviare al data center feature già validate anziché campioni raw ad alta frequenza.
-
-Gli artefatti più frequenti in acquisizioni ambulatoriali includono interferenza elettromagnetica, contatto instabile degli elettrodi, movimenti del paziente e saturazione dell'amplificatore.
-Ciascuno di questi fenomeni può distorcere le ampiezze delle onde o introdurre picchi spuri che un detector QRS interpreta come battiti aggiuntivi.
-La letteratura propone indici di qualità del segnale (SQI) che combinano metriche nel dominio del tempo, della frequenza e della forma d'onda~\cite{li2013sqi}; il loro utilizzo a monte della classificazione riduce la propagazione di errori verso il modello ML.
-Nel flusso sperimentale di questa tesi, la qualità del segnale è implicitamente garantita dal preprocessing offline che ha prodotto il CSV Kaggle; in un deployment reale, la valutazione SQI andrebbe integrata nel percorso edge prima della pubblicazione su Kafka.
 
 \section{Dataset sperimentale: MIT--BIH tabellare (Kaggle)}\label{sec:dataset}
 

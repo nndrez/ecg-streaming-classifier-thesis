@@ -38,7 +38,7 @@ La scelta di Scala allinea il linguaggio di implementazione al runtime di esecuz
 
 \section{Apache Spark: Core, Spark SQL e MLlib}\label{sec:spark}
 
-Apache Spark generalizza MapReduce con operazioni in-memory su strutture resilienti (RDD e, oggi, tabelle SQL)~\cite{zaharia2012resilient,zaharia2016apache}.
+Apache Spark generalizza MapReduce con operazioni in-memory su strutture resilienti (RDD e, oggi, tabelle SQL)~\cite{zaharia2010spark,zaharia2016apache}.
 Il progetto utilizza \textbf{Spark 4.1.1} con moduli \texttt{spark-core}, \texttt{spark-sql}, \texttt{spark-mllib} e connettore \texttt{spark-sql-kafka-0-10}.
 
 \subsection{Modello di esecuzione}
@@ -274,6 +274,3 @@ La Tabella~\ref{tab:requisiti-tecnologie} collega i requisiti dell'introduzione 
 
 Nel capitolo seguente queste tecnologie sono organizzate in moduli e flussi dati concreti, orchestrati da \texttt{AppRunner}.
 
-La Tabella~\ref{tab:requisiti-tecnologie} evidenzia come ogni requisito non funzionale enunciato nell'introduzione trovi una risposta tecnologica concreta.
-Il disaccoppiamento è ottenuto da Kafka; la fault tolerance da checkpoint Spark e transazioni Delta; la scalabilità da partizioni Kafka e parallelismo Spark; l'unificazione batch/streaming da Scala e Spark come runtime condiviso.
-Questa coerenza riduce il numero di tecnologie da operare in produzione e semplifica il debugging, poiché training e inferenza condividono configurazione, formato dati e artefatto modello.

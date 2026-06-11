@@ -326,7 +326,7 @@ Per audit clinico con campionamento delle predizioni in console, \texttt{foreach
 
 I path di output sono definiti in \texttt{Config}:
 \texttt{DELTA\_PREDICTIONS\_PATH} per i dati di business, \texttt{STREAMING\_CHECKPOINT\_PATH} per i metadati Spark.
-La separazione è fondamentale: cancellare il checkpoint per ``resettare'' l'experimento non deve cancellare le predizioni accumulate.
+La separazione è fondamentale: cancellare il checkpoint per ``resettare'' l'esperimento non deve cancellare le predizioni accumulate.
 
 \subsection{Operazioni successive}
 
@@ -379,7 +379,7 @@ for ((jsonPayload, index) <- jsonRecords.zipWithIndex) {
 
 \section{Orchestrazione e ciclo di vita}\label{sec:orchestrazione}
 
-\texttt{AppRunner} implementa la sequenza di avvio descritta nel Capitolo~\ref{sec:app-runner}.
+\texttt{AppRunner} implementa la sequenza di avvio descritta nella Sezione~\ref{sec:app-runner}.
 Il frammento saliente riguarda il thread demone del predictor:
 
 \begin{lstlisting}[language=Scala,caption={Avvio predictor in thread demone.},label={lst:app-runner-thread}]

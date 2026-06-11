@@ -3,8 +3,6 @@
 Questa sezione fissa il setup sperimentale.
 I numeri nelle tabelle e nel grafico sono \textbf{provvisori}: vanno sostituiti con l'output di \texttt{EcgModelTrainer} e \texttt{EcgStreamingPredictor} dopo le run definitive (nel sorgente LaTeX restano marcatori \texttt{\% TODO}).
 
-\footnotetext{Valori provvisori: da sostituire con output reali di \texttt{EcgModelTrainer} e \texttt{EcgStreamingPredictor}.}
-
 \subsection{Ambiente hardware e software}
 
 \begin{table}[H]
@@ -133,7 +131,7 @@ La differenza rispetto a lavori che ottimizzano esclusivamente il classificatore
 
 \section{Analisi degli errori e impatto clinico}\label{sec:analisi-errori}
 
-Le metriche numeriche del Capitolo~\ref{sec:performance-modello} vanno lette insieme al contesto d'uso.
+Le metriche numeriche della Sezione~\ref{sec:performance-modello} vanno lette insieme al contesto d'uso.
 Un classificatore automatico di battiti non sostituisce il clinico: funge da \emph{supporto decisionale} che prioritizza eventi da rivedere, riducendo il tempo di screening su tracce lunghe.
 
 \subsection{Scenari operativi e sensibilità richiesta}
@@ -187,6 +185,9 @@ La pipeline attuale classifica battito per battito senza aggregare eventi in fin
 \subsection{Definizione end-to-end}
 
 Si definisce latenza end-to-end il tempo intercorrente tra la generazione del messaggio da \texttt{EcgPatientSimulator} (\texttt{producer.send}) e la visibilità della predizione nella tabella Delta Lake.
+Questa misura include tutte le fasi intermedie: serializzazione e invio al broker, permanenza nel buffer Kafka, scheduling del micro-batch Spark, parsing del payload JSON, applicazione del modello ML e scrittura transazionale su Delta.
+Non include il tempo di acquisizione del segnale fisico né il preprocessing edge, poiché il simulatore opera su dati già estratti dal CSV.
+La definizione è conservativa: la visibilità su Delta coincide con il commit del micro-batch, non con il momento in cui il dato è interrogabile da un eventuale dashboard downstream.
 
 \subsection{Decomposizione (valori provvisori)}
 
@@ -216,8 +217,9 @@ Il collo di bottiglia principale è lo scheduling del micro-batch Spark, che dip
 \subsection{Warmup iniziale}
 
 L'attesa di 15 secondi in \texttt{AppRunner} prima dell'avvio del simulatore introduce un offset fisso non incluso nella latenza per-record.
-Al primo avvio, Spark Streaming impiega tempo aggiuntivo per inizializzare il query plan e connettersi a Kafka.
-Nei run successivi, con checkpoint esistente, il warmup si riduce.
+Al primo avvio, Spark Streaming impiega tempo aggiuntivo per inizializzare il query plan, caricare il modello da disco e stabilire la connessione con il broker Kafka.
+Nei run successivi, con checkpoint esistente, il warmup si riduce perché Spark può saltare la negoziazione iniziale degli offset e ripartire dal punto di arresto precedente.
+La durata di 15 secondi è stata determinata empiricamente sulla macchina di sviluppo; su hardware differente o con JVM non ancora warm, potrebbe non essere sufficiente, causando la perdita dei primi messaggi nel buffer Kafka prima che il consumer sia pronto a elaborarli.
 
 \subsection{Confronto con requisiti clinici}
 
@@ -235,14 +237,17 @@ Il throughput massimo teorico, stimato aumentando il rate di invio senza \texttt
 
 \subsection{Effetto delle partizioni Kafka}
 
-Con topic a partizione singola (default Docker), il parallelismo di consumo Spark è limitato a un task per micro-batch.
-Aumentare le partizioni del topic e il parametro \texttt{spark.default.parallelism} permetterebbe scaling orizzontale del consumer, come discusso nel Capitolo~\ref{sec:requisiti-nf}.
+Con topic a partizione singola (default Docker), il parallelismo di consumo Spark è limitato a un task per micro-batch: ogni micro-batch legge l'intera partizione con un singolo thread.
+Aumentare le partizioni del topic e il parametro \texttt{spark.default.parallelism} permetterebbe scaling orizzontale del consumer, come discusso nella Sezione~\ref{sec:requisiti-nf}.
+Se il topic avesse, ad esempio, quattro partizioni con chiave paziente, Spark allocherebbe fino a quattro task paralleli per micro-batch, distribuendo il carico di parsing e inferenza su altrettanti core.
+Il throughput crescerebbe in modo approssimativamente lineare fino a saturare le risorse di CPU o I/O, a patto che il modello ML e lo schema JSON restino invariati tra le partizioni.
 
 \subsection{Back-pressure}
 
-Structured Streaming applica back-pressure nativo: se il consumer non riesce a tenere il passo con il producer, i lag di offset Kafka crescono.
-Nel setup attuale, con 1 msg/s, il lag resta nullo.
-Test di stress con rate superiori (10, 100, 1000 msg/s) costituirebbero un'estensione naturale dell'evaluazione.
+Structured Streaming applica back-pressure nativo: se il consumer non riesce a tenere il passo con il producer, i lag di offset Kafka crescono e il motore rallenta l'avvio di nuovi micro-batch fino al recupero.
+Nel setup attuale, con 1 msg/s, il lag resta nullo perché il predictor completa ogni micro-batch ben prima dell'arrivo del messaggio successivo.
+Con rate superiori, il lag di offset diventerebbe l'indicatore principale di saturazione: un lag crescente segnala che il tempo di processing per micro-batch supera l'intervallo di arrivo dei messaggi.
+Test di stress con rate superiori (10, 100, 1000 msg/s) costituirebbero un'estensione naturale della valutazione, permettendo di individuare il punto di saturazione del predictor su singolo nodo e di stimare il numero di executor necessari per carichi realistici.
 
 \subsection{Stima del carico multi-paziente}
 
@@ -272,7 +277,7 @@ Il simulatore andrebbe sostituito da producer reali o da tool di load testing (K
 
 \subsection{Costi di scaling}
 
-L'aggiunta di executor Spark e broker Kafka comporta costi infrastrutturali (CPU, memoria, storage, banda) che crescono sub-linearimente se il partitioning è calibrato correttamente.
+L'aggiunta di executor Spark e broker Kafka comporta costi infrastrutturali (CPU, memoria, storage, banda) che crescono sub-linearmente se il partitioning è calibrato correttamente.
 Delta su object store scala lo storage in modo elastico, ma le scritture frequenti di micro-batch piccoli possono generare molti file Parquet di dimensione ridotta, richiedendo periodicamente \texttt{OPTIMIZE} per mantenere prestazioni di query accettabili.
 Questi aspetti operativi, trascurati nel prototipo, diventano centrali in un deployment con migliaia di pazienti e retention di predizioni su mesi o anni.
 
@@ -289,7 +294,7 @@ Per replicare l'esperimento:
 \end{enumerate}
 
 Lo \texttt{seed = 42L} garantisce riproducibilità dello split train/test.
-La reproducibilità end-to-end del flusso streaming dipende anche dallo stato del checkpoint: per riesperimenti puliti, cancellare \texttt{spark-warehouse/checkpoints/ecg\_predictions} prima di ogni run.
+La riproducibilità end-to-end del flusso streaming dipende anche dallo stato del checkpoint: per riesperimenti puliti, cancellare \texttt{spark-warehouse/checkpoints/ecg\_predictions} prima di ogni run.
 
 \section{Sintesi dei risultati sperimentali}
 

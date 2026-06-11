@@ -13,7 +13,7 @@ Da questo punto di vista, l'analisi automatica dei battiti cardiaci pone sfide t
 Nel dominio medico i trade-off tra \textbf{precisione} e \textbf{sensibilità} ricoprono un ruolo critico.
 I falsi negativi possono portare a omissioni diagnostiche rilevanti, mentre i falsi positivi possono introdurre rumore operativo e aumentare il carico di verifica manuale.
 
-Ne deriva l'esigenza di una pipeline che non si limiti a produrre una classificazione accurata, ma che sia anche \emph{interpretabile} dal punto di vista architetturale, scalabile nel numero di sorgenti e adatta a operare su infrastrutture distribuite.
+Serve dunque una pipeline che produca classificazioni accurate e sia al contempo \emph{interpretabile} dal punto di vista architetturale, scalabile e adatta a infrastrutture distribuite.
 In tale prospettiva, il progetto affronta il problema della classificazione di battiti ECG come un caso di studio per l'integrazione tra \textbf{machine learning classico} e \textbf{data streaming}.
 
 Il contesto clinico rende particolarmente rilevante la distinzione tra \emph{monitoraggio episodico} e \emph{monitoraggio continuo}.
@@ -77,11 +77,12 @@ Questa impostazione rende la tesi utile come riferimento per chi deve progettare
 \section{Struttura della tesi}\label{sec:struttura-della-tesi}
 La trattazione è organizzata come segue:
 \begin{itemize}
-  \item \textbf{Capitolo 1} descrive il dominio applicativo e il dataset utilizzato (MIT-BIH in versione tabellare da Kaggle), includendo considerazioni su feature cliniche, preprocessing del segnale e paradigma Edge Computing.
-  \item \textbf{Capitolo 2} giustifica le scelte tecnologiche adottate, soffermandosi sui vantaggi di Scala, Spark, Kafka KRaft e Delta Lake nel contesto di pipeline distribuite.
-  \item \textbf{Capitolo 3} illustra l'architettura complessiva e la scomposizione in tre moduli principali: \texttt{EcgModelTrainer} (batch), \texttt{EcgPatientSimulator} (ingestion) e \texttt{EcgStreamingPredictor} (streaming).
-  \item \textbf{Capitolo 4} approfondisce dettagli implementativi, mostrando frammenti di codice e spiegando le scelte di configurazione della ML pipeline e del producer Kafka.
-  \item \textbf{Capitolo 5} presenta la valutazione sperimentale, confrontando metriche di accuratezza, analisi di falsi positivi/negativi, e misure di latenze e throughput; infine, le conclusioni espongono valutazioni complessive e possibili linee di estensione verso modelli deep e integrazione analitica con Delta Lake.
+  \item Il \textbf{Capitolo~\ref{ch:dominio-applicativo-e-dataset}} descrive il dominio applicativo e il dataset utilizzato (MIT-BIH in versione tabellare da Kaggle), includendo considerazioni su feature cliniche, preprocessing del segnale e paradigma Edge Computing.
+  \item Il \textbf{Capitolo~\ref{ch:lo-stack-tecnologico}} giustifica le scelte tecnologiche adottate, soffermandosi sui vantaggi di Scala, Spark, Kafka KRaft e Delta Lake nel contesto di pipeline distribuite.
+  \item Il \textbf{Capitolo~\ref{ch:progettazione-e-architettura-del-sistema}} illustra l'architettura complessiva e la scomposizione in tre moduli principali: \texttt{EcgModelTrainer} (batch), \texttt{EcgPatientSimulator} (ingestion) e \texttt{EcgStreamingPredictor} (streaming).
+  \item Il \textbf{Capitolo~\ref{ch:implementazione-e-dettagli-tecnici}} approfondisce dettagli implementativi, mostrando frammenti di codice e spiegando le scelte di configurazione della ML pipeline e del producer Kafka.
+  \item Il \textbf{Capitolo~\ref{ch:analisi-dei-risultati-e-test}} presenta la valutazione sperimentale, confrontando metriche di accuratezza, analisi di falsi positivi/negativi, e misure di latenze e throughput.
+  \item Il \textbf{Capitolo~\ref{ch:conclusioni}} espone le valutazioni complessive e le possibili linee di estensione verso modelli deep e integrazione analitica con Delta Lake.
 \end{itemize}
 
 I sorgenti del repository (\texttt{EcgModelTrainer}, \texttt{EcgPatientSimulator}, \texttt{EcgStreamingPredictor}) sono richiamati nei capitoli di implementazione e risultati, così da legare teoria e codice effettivamente scritto.
