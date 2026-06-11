@@ -6,7 +6,8 @@
 \usepackage{fancyhdr}
 \usepackage{graphicx}
 \usepackage{csquotes}
-\usepackage[hidelinks]{hyperref}
+\usepackage[hidelinks,hypertexnames=false]{hyperref}
+\usepackage{bookmark}
 \usepackage[linesnumbered,ruled]{algorithm2e}
 \usepackage{listings}
 \usepackage{xcolor}
@@ -21,7 +22,7 @@
 \usepackage{longtable}
 \usepackage{pgfplots}
 \usepackage{microtype}
-\usepackage[htt]{hyphenat}
+\usepackage{hyphenat}
 \usepackage{siunitx}
 \sisetup{detect-all,per-mode=symbol}
 \usepackage{seqsplit}
@@ -77,22 +78,21 @@
 
 \begin{document}
 
-    \input{titlepage}
+    \pagestyle{empty}
+    \pagenumbering{roman}
+    \hypersetup{pageanchor=false}
 
-    \thispagestyle{empty}
+    \input{titlepage}
     \cleardoublepage
 
-    \thispagestyle{empty}
     \null\vspace{\stretch{1}}
         \begin{flushright}
             \textit{TODO Dedica}
         \end{flushright}
     \vspace{\stretch{2}}\null
-
-    \newpage
-    \thispagestyle{empty}
     \cleardoublepage
 
+    \hypersetup{pageanchor=true}
     \cleardoublepage
     \addcontentsline{toc}{chapter}{Sommario}
     \label{ch:sommario}
@@ -111,6 +111,11 @@
     \tableofcontents
     \listoffigures
     \listoftables
+    \cleardoublepage
+
+    \pagestyle{fancy}
+    \pagenumbering{arabic}
+    \setcounter{page}{1}
 
     \chapter{Introduzione}
     \label{ch:introduzione}

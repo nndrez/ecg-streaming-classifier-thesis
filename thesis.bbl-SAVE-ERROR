@@ -1,0 +1,1217 @@
+% $ biblatex auxiliary file $
+% $ biblatex bbl format version 3.2 $
+% Do not modify the above lines!
+%
+% This is an auxiliary file used by the 'biblatex' package.
+% This file may safely be deleted. It will be recreated by
+% biber as required.
+%
+\begingroup
+\makeatletter
+\@ifundefined{ver@biblatex.sty}
+  {\@latex@error
+     {Missing 'biblatex' package}
+     {The bibliography requires the 'biblatex' package.}
+      \aftergroup\endinput}
+  {}
+\endgroup
+
+
+\refsection{0}
+  \datalist[entry]{nyt/global//global/global}
+    \entry{apache2023kraft}{misc}{}
+      \name{author}{1}{}{%
+        {{hash=8b499b5be8914246b406785e1327dbb3}{%
+           family={{Apache Software Foundation}},
+           familyi={A\bibinitperiod}}}%
+      }
+      \strng{namehash}{8b499b5be8914246b406785e1327dbb3}
+      \strng{fullhash}{8b499b5be8914246b406785e1327dbb3}
+      \strng{bibnamehash}{8b499b5be8914246b406785e1327dbb3}
+      \strng{authorbibnamehash}{8b499b5be8914246b406785e1327dbb3}
+      \strng{authornamehash}{8b499b5be8914246b406785e1327dbb3}
+      \strng{authorfullhash}{8b499b5be8914246b406785e1327dbb3}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{howpublished}{\url{https://cwiki.apache.org/confluence/display/KAFKA/KIP-500}}
+      \field{note}{Accessed: 2026-05-27}
+      \field{title}{{KIP-500}: Replace {ZooKeeper} with a Self-Managed Metadata Quorum}
+      \field{year}{2023}
+    \endentry
+    \entry{armbrust2018structured}{inproceedings}{}
+      \name{author}{14}{}{%
+        {{hash=8eafad8289b06f72c2e8b7caf80a413a}{%
+           family={Armbrust},
+           familyi={A\bibinitperiod},
+           given={Michael},
+           giveni={M\bibinitperiod}}}%
+        {{hash=f8b27ed8b503bc3e7b32fc53bace3697}{%
+           family={Das},
+           familyi={D\bibinitperiod},
+           given={Tathagata},
+           giveni={T\bibinitperiod}}}%
+        {{hash=18f2ca94eab66e99fbcfaca400a36215}{%
+           family={Sun},
+           familyi={S\bibinitperiod},
+           given={Li},
+           giveni={L\bibinitperiod}}}%
+        {{hash=a3eacc6b98753794152fd446090f75e4}{%
+           family={Yavuz},
+           familyi={Y\bibinitperiod},
+           given={Burak},
+           giveni={B\bibinitperiod}}}%
+        {{hash=f63dc67793e6f89b58fcf23661c6cdd8}{%
+           family={Cohen},
+           familyi={C\bibinitperiod},
+           given={Shixiong},
+           giveni={S\bibinitperiod}}}%
+        {{hash=55674607c43b3ce7d0668b255bdf6878}{%
+           family={Li},
+           familyi={L\bibinitperiod},
+           given={Adam},
+           giveni={A\bibinitperiod}}}%
+        {{hash=bdd1d7d3d723229e431f8ab3ad547918}{%
+           family={Xu},
+           familyi={X\bibinitperiod},
+           given={Tianxiang},
+           giveni={T\bibinitperiod}}}%
+        {{hash=d69a2bac4c935fdb0ac600d4b1d5d60c}{%
+           family={Zhu},
+           familyi={Z\bibinitperiod},
+           given={Michael},
+           giveni={M\bibinitperiod}}}%
+        {{hash=dfd14c69d2338ce9cf556c819a32d286}{%
+           family={Ghodsi},
+           familyi={G\bibinitperiod},
+           given={Ali},
+           giveni={A\bibinitperiod}}}%
+        {{hash=00dc518b94dfa6349c86e70661a1a5ef}{%
+           family={Zaharia},
+           familyi={Z\bibinitperiod},
+           given={Matei},
+           giveni={M\bibinitperiod}}}%
+        {{hash=125f074bf46e8a83339101fd94d088e2}{%
+           family={Xin},
+           familyi={X\bibinitperiod},
+           given={Reynold},
+           giveni={R\bibinitperiod}}}%
+        {{hash=2b80efa845ff86794acc83783899dcf0}{%
+           family={Franklin},
+           familyi={F\bibinitperiod},
+           given={Michael\bibnamedelima J.},
+           giveni={M\bibinitperiod\bibinitdelim J\bibinitperiod}}}%
+        {{hash=51d9ef26181e2e8a9dc546b401e0bb26}{%
+           family={Stoica},
+           familyi={S\bibinitperiod},
+           given={Ion},
+           giveni={I\bibinitperiod}}}%
+        {{hash=9c1c895601e76d892b94923c43dffd64}{%
+           family={Roese},
+           familyi={R\bibinitperiod},
+           given={Ali},
+           giveni={A\bibinitperiod}}}%
+      }
+      \strng{namehash}{623f1e0dd6f86197c2a7bf790c80a56f}
+      \strng{fullhash}{878daf1f4a5cb51730280030e62ee275}
+      \strng{bibnamehash}{878daf1f4a5cb51730280030e62ee275}
+      \strng{authorbibnamehash}{878daf1f4a5cb51730280030e62ee275}
+      \strng{authornamehash}{623f1e0dd6f86197c2a7bf790c80a56f}
+      \strng{authorfullhash}{878daf1f4a5cb51730280030e62ee275}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Proceedings of the 2018 International Conference on Management of Data (SIGMOD)}
+      \field{title}{Structured Streaming: A Declarative {API} for Real-Time Applications in Apache Spark at Scale}
+      \field{year}{2018}
+      \field{pages}{601\bibrangedash 613}
+      \range{pages}{13}
+      \verb{doi}
+      \verb 10.1145/3183713.3190644
+      \endverb
+    \endentry
+    \entry{armbrust2020delta}{inproceedings}{}
+      \name{author}{4}{}{%
+        {{hash=8eafad8289b06f72c2e8b7caf80a413a}{%
+           family={Armbrust},
+           familyi={A\bibinitperiod},
+           given={Michael},
+           giveni={M\bibinitperiod}}}%
+        {{hash=dfd14c69d2338ce9cf556c819a32d286}{%
+           family={Ghodsi},
+           familyi={G\bibinitperiod},
+           given={Ali},
+           giveni={A\bibinitperiod}}}%
+        {{hash=125f074bf46e8a83339101fd94d088e2}{%
+           family={Xin},
+           familyi={X\bibinitperiod},
+           given={Reynold},
+           giveni={R\bibinitperiod}}}%
+        {{hash=d69a2bac4c935fdb0ac600d4b1d5d60c}{%
+           family={Zhu},
+           familyi={Z\bibinitperiod},
+           given={Michael},
+           giveni={M\bibinitperiod}}}%
+      }
+      \strng{namehash}{d8ace9efee6d0e2aead2cbc3d428f038}
+      \strng{fullhash}{549cb26ac0982ea3115724937c89b0c0}
+      \strng{bibnamehash}{549cb26ac0982ea3115724937c89b0c0}
+      \strng{authorbibnamehash}{549cb26ac0982ea3115724937c89b0c0}
+      \strng{authornamehash}{d8ace9efee6d0e2aead2cbc3d428f038}
+      \strng{authorfullhash}{549cb26ac0982ea3115724937c89b0c0}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Proceedings of the VLDB Endowment}
+      \field{number}{12}
+      \field{title}{Delta Lake: High-Performance {ACID} Table Storage over Cloud Object Stores}
+      \field{volume}{13}
+      \field{year}{2020}
+      \field{pages}{3411\bibrangedash 3424}
+      \range{pages}{14}
+      \verb{doi}
+      \verb 10.14778/3415744.3415760
+      \endverb
+    \endentry
+    \entry{armbrust2015sparksql}{inproceedings}{}
+      \name{author}{12}{}{%
+        {{hash=8eafad8289b06f72c2e8b7caf80a413a}{%
+           family={Armbrust},
+           familyi={A\bibinitperiod},
+           given={Michael},
+           giveni={M\bibinitperiod}}}%
+        {{hash=5f4b66d7cacadea3e7b21ebcc1706643}{%
+           family={Xin},
+           familyi={X\bibinitperiod},
+           given={Reynold\bibnamedelima S.},
+           giveni={R\bibinitperiod\bibinitdelim S\bibinitperiod}}}%
+        {{hash=5aa904851b2181ca0d3be3e2246f7229}{%
+           family={Lian},
+           familyi={L\bibinitperiod},
+           given={Cheng},
+           giveni={C\bibinitperiod}}}%
+        {{hash=cbb279ea2aed8be2bffed2fbad7d2f36}{%
+           family={Huai},
+           familyi={H\bibinitperiod},
+           given={Yin},
+           giveni={Y\bibinitperiod}}}%
+        {{hash=dfafd64b4da8908562304387c1d8152d}{%
+           family={Liu},
+           familyi={L\bibinitperiod},
+           given={Davies},
+           giveni={D\bibinitperiod}}}%
+        {{hash=6c1bf6d516462b9529c5db822237a253}{%
+           family={Bradley},
+           familyi={B\bibinitperiod},
+           given={Joseph\bibnamedelima K.},
+           giveni={J\bibinitperiod\bibinitdelim K\bibinitperiod}}}%
+        {{hash=2776c215c8df7c9787aea25db59709d0}{%
+           family={Meng},
+           familyi={M\bibinitperiod},
+           given={Xiangrui},
+           giveni={X\bibinitperiod}}}%
+        {{hash=70e0fe957473b80f1b1b5dcb8e99d31e}{%
+           family={Talwalkar},
+           familyi={T\bibinitperiod},
+           given={Ameet},
+           giveni={A\bibinitperiod}}}%
+        {{hash=2b80efa845ff86794acc83783899dcf0}{%
+           family={Franklin},
+           familyi={F\bibinitperiod},
+           given={Michael\bibnamedelima J.},
+           giveni={M\bibinitperiod\bibinitdelim J\bibinitperiod}}}%
+        {{hash=dfd14c69d2338ce9cf556c819a32d286}{%
+           family={Ghodsi},
+           familyi={G\bibinitperiod},
+           given={Ali},
+           giveni={A\bibinitperiod}}}%
+        {{hash=00dc518b94dfa6349c86e70661a1a5ef}{%
+           family={Zaharia},
+           familyi={Z\bibinitperiod},
+           given={Matei},
+           giveni={M\bibinitperiod}}}%
+        {{hash=51d9ef26181e2e8a9dc546b401e0bb26}{%
+           family={Stoica},
+           familyi={S\bibinitperiod},
+           given={Ion},
+           giveni={I\bibinitperiod}}}%
+      }
+      \strng{namehash}{e352e0e557ba4ad8aebd019027c86f1d}
+      \strng{fullhash}{d5e9dcc3facc2b6afba106b91378446a}
+      \strng{bibnamehash}{d5e9dcc3facc2b6afba106b91378446a}
+      \strng{authorbibnamehash}{d5e9dcc3facc2b6afba106b91378446a}
+      \strng{authornamehash}{e352e0e557ba4ad8aebd019027c86f1d}
+      \strng{authorfullhash}{d5e9dcc3facc2b6afba106b91378446a}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Proceedings of the 2015 ACM SIGMOD International Conference on Management of Data}
+      \field{title}{Spark {SQL}: Relational Data Processing in Spark}
+      \field{year}{2015}
+      \field{pages}{1383\bibrangedash 1394}
+      \range{pages}{12}
+      \verb{doi}
+      \verb 10.1145/2723372.2742797
+      \endverb
+    \endentry
+    \entry{aami2012ec57}{report}{}
+      \name{author}{1}{}{%
+        {{hash=eb594773959f4d2fa87b1f1089b9b605}{%
+           family={{Association for the Advancement of Medical Instrumentation}},
+           familyi={A\bibinitperiod}}}%
+      }
+      \list{institution}{1}{%
+        {AAMI}%
+      }
+      \strng{namehash}{eb594773959f4d2fa87b1f1089b9b605}
+      \strng{fullhash}{eb594773959f4d2fa87b1f1089b9b605}
+      \strng{bibnamehash}{eb594773959f4d2fa87b1f1089b9b605}
+      \strng{authorbibnamehash}{eb594773959f4d2fa87b1f1089b9b605}
+      \strng{authornamehash}{eb594773959f4d2fa87b1f1089b9b605}
+      \strng{authorfullhash}{eb594773959f4d2fa87b1f1089b9b605}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{number}{EC57:2012}
+      \field{title}{Testing and Reporting Performance Results of Cardiac Rhythm and {ST} Segment Measurement Algorithms}
+      \field{type}{Standard}
+      \field{year}{2012}
+    \endentry
+    \entry{breiman2001random}{article}{}
+      \name{author}{1}{}{%
+        {{hash=132b7100417675d55d5d4d8b244f7a34}{%
+           family={Breiman},
+           familyi={B\bibinitperiod},
+           given={Leo},
+           giveni={L\bibinitperiod}}}%
+      }
+      \strng{namehash}{132b7100417675d55d5d4d8b244f7a34}
+      \strng{fullhash}{132b7100417675d55d5d4d8b244f7a34}
+      \strng{bibnamehash}{132b7100417675d55d5d4d8b244f7a34}
+      \strng{authorbibnamehash}{132b7100417675d55d5d4d8b244f7a34}
+      \strng{authornamehash}{132b7100417675d55d5d4d8b244f7a34}
+      \strng{authorfullhash}{132b7100417675d55d5d4d8b244f7a34}
+      \field{sortinit}{B}
+      \field{sortinithash}{d7095fff47cda75ca2589920aae98399}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Machine Learning}
+      \field{number}{1}
+      \field{title}{Random Forests}
+      \field{volume}{45}
+      \field{year}{2001}
+      \field{pages}{5\bibrangedash 32}
+      \range{pages}{28}
+      \verb{doi}
+      \verb 10.1023/A:1010933404324
+      \endverb
+    \endentry
+    \entry{dechazal2004automatic}{article}{}
+      \name{author}{3}{}{%
+        {{hash=8cc78c28ab9bba1804c32c877095dec1}{%
+           family={Chazal},
+           familyi={C\bibinitperiod},
+           given={Philip},
+           giveni={P\bibinitperiod},
+           prefix={de},
+           prefixi={d\bibinitperiod}}}%
+        {{hash=9e769df7dd62c971faa7cc26da6f19d5}{%
+           family={O'Dwyer},
+           familyi={O\bibinitperiod},
+           given={Mark},
+           giveni={M\bibinitperiod}}}%
+        {{hash=de62edad37526aed8556911e22642355}{%
+           family={Reilly},
+           familyi={R\bibinitperiod},
+           given={Richard\bibnamedelima B.},
+           giveni={R\bibinitperiod\bibinitdelim B\bibinitperiod}}}%
+      }
+      \strng{namehash}{c5db50a8aaaae2401ddad22b7c27bd02}
+      \strng{fullhash}{c5db50a8aaaae2401ddad22b7c27bd02}
+      \strng{bibnamehash}{c5db50a8aaaae2401ddad22b7c27bd02}
+      \strng{authorbibnamehash}{c5db50a8aaaae2401ddad22b7c27bd02}
+      \strng{authornamehash}{c5db50a8aaaae2401ddad22b7c27bd02}
+      \strng{authorfullhash}{c5db50a8aaaae2401ddad22b7c27bd02}
+      \field{sortinit}{C}
+      \field{sortinithash}{4d103a86280481745c9c897c925753c0}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{IEEE Transactions on Biomedical Engineering}
+      \field{number}{7}
+      \field{title}{Automatic Classification of Heartbeats Using {ECG} Morphology and Heartbeat Interval Features}
+      \field{volume}{51}
+      \field{year}{2004}
+      \field{pages}{1196\bibrangedash 1206}
+      \range{pages}{11}
+      \verb{doi}
+      \verb 10.1109/TBME.2004.827359
+      \endverb
+    \endentry
+    \entry{clifford2006advanced}{book}{}
+      \name{editor}{3}{}{%
+        {{hash=b927e667e291a47a7437a9a8d631ed0e}{%
+           family={Clifford},
+           familyi={C\bibinitperiod},
+           given={Gari\bibnamedelima D.},
+           giveni={G\bibinitperiod\bibinitdelim D\bibinitperiod}}}%
+        {{hash=1564253ec09a9ea4809b0ecbcdc944c4}{%
+           family={Azuaje},
+           familyi={A\bibinitperiod},
+           given={Francisco},
+           giveni={F\bibinitperiod}}}%
+        {{hash=f0363cf87b20db73a6523b047d084ac5}{%
+           family={McSharry},
+           familyi={M\bibinitperiod},
+           given={Patrick},
+           giveni={P\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {Artech House}%
+      }
+      \strng{namehash}{a023db17dc01adc5da4cd1676ff90ddc}
+      \strng{fullhash}{a023db17dc01adc5da4cd1676ff90ddc}
+      \strng{bibnamehash}{a023db17dc01adc5da4cd1676ff90ddc}
+      \strng{editorbibnamehash}{a023db17dc01adc5da4cd1676ff90ddc}
+      \strng{editornamehash}{a023db17dc01adc5da4cd1676ff90ddc}
+      \strng{editorfullhash}{a023db17dc01adc5da4cd1676ff90ddc}
+      \field{sortinit}{C}
+      \field{sortinithash}{4d103a86280481745c9c897c925753c0}
+      \field{labelnamesource}{editor}
+      \field{labeltitlesource}{title}
+      \field{isbn}{978-1580539663}
+      \field{title}{Advanced Methods and Tools for {ECG} Data Analysis}
+      \field{year}{2006}
+    \endentry
+    \entry{dehghani2022data}{book}{}
+      \name{author}{1}{}{%
+        {{hash=f5bad3a4e3ac23c8c5479f8323bd1a01}{%
+           family={Dehghani},
+           familyi={D\bibinitperiod},
+           given={Zhamak},
+           giveni={Z\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {O'Reilly Media}%
+      }
+      \strng{namehash}{f5bad3a4e3ac23c8c5479f8323bd1a01}
+      \strng{fullhash}{f5bad3a4e3ac23c8c5479f8323bd1a01}
+      \strng{bibnamehash}{f5bad3a4e3ac23c8c5479f8323bd1a01}
+      \strng{authorbibnamehash}{f5bad3a4e3ac23c8c5479f8323bd1a01}
+      \strng{authornamehash}{f5bad3a4e3ac23c8c5479f8323bd1a01}
+      \strng{authorfullhash}{f5bad3a4e3ac23c8c5479f8323bd1a01}
+      \field{sortinit}{D}
+      \field{sortinithash}{6f385f66841fb5e82009dc833c761848}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{title}{Data Mesh: Delivering Data-Driven Value at Scale}
+      \field{year}{2022}
+    \endentry
+    \entry{eu2017mdr}{misc}{}
+      \name{author}{1}{}{%
+        {{hash=d0baa957acb6522d22e3251a428fe067}{%
+           family={{European Parliament and Council of the European Union}},
+           familyi={E\bibinitperiod}}}%
+      }
+      \strng{namehash}{d0baa957acb6522d22e3251a428fe067}
+      \strng{fullhash}{d0baa957acb6522d22e3251a428fe067}
+      \strng{bibnamehash}{d0baa957acb6522d22e3251a428fe067}
+      \strng{authorbibnamehash}{d0baa957acb6522d22e3251a428fe067}
+      \strng{authornamehash}{d0baa957acb6522d22e3251a428fe067}
+      \strng{authorfullhash}{d0baa957acb6522d22e3251a428fe067}
+      \field{sortinit}{E}
+      \field{sortinithash}{8da8a182d344d5b9047633dfc0cc9131}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{howpublished}{Official Journal of the European Union, L 117}
+      \field{title}{Regulation ({EU}) 2017/745 on Medical Devices}
+      \field{year}{2017}
+    \endentry
+    \entry{goldberger2000physiobank}{article}{}
+      \name{author}{10}{}{%
+        {{hash=c99be12ffae540b5ba4cb3a23ee3ec0a}{%
+           family={Goldberger},
+           familyi={G\bibinitperiod},
+           given={Ary\bibnamedelima L.},
+           giveni={A\bibinitperiod\bibinitdelim L\bibinitperiod}}}%
+        {{hash=22c61ac7a4c1cfb66b48ed8f90dd69d7}{%
+           family={Amaral},
+           familyi={A\bibinitperiod},
+           given={Luis\bibnamedelimb A.\bibnamedelimi N.},
+           giveni={L\bibinitperiod\bibinitdelim A\bibinitperiod\bibinitdelim N\bibinitperiod}}}%
+        {{hash=6b2678a928f4aaa1dbcc238adf866993}{%
+           family={Glass},
+           familyi={G\bibinitperiod},
+           given={Leon},
+           giveni={L\bibinitperiod}}}%
+        {{hash=bb1b55fa34693d71ca9e1104f846fa42}{%
+           family={Hausdorff},
+           familyi={H\bibinitperiod},
+           given={Jeffrey\bibnamedelima M.},
+           giveni={J\bibinitperiod\bibinitdelim M\bibinitperiod}}}%
+        {{hash=b0f592c3910ad2fd1d9791d16e601ce3}{%
+           family={Ivanov},
+           familyi={I\bibinitperiod},
+           given={Plamen\bibnamedelima Ch.},
+           giveni={P\bibinitperiod\bibinitdelim C\bibinitperiod}}}%
+        {{hash=2193bac90baddb616fc4dcd2f366de81}{%
+           family={Mark},
+           familyi={M\bibinitperiod},
+           given={Roger\bibnamedelima G.},
+           giveni={R\bibinitperiod\bibinitdelim G\bibinitperiod}}}%
+        {{hash=5222afca7b17d3624464c48bdb21e705}{%
+           family={Mietus},
+           familyi={M\bibinitperiod},
+           given={Joseph\bibnamedelima E.},
+           giveni={J\bibinitperiod\bibinitdelim E\bibinitperiod}}}%
+        {{hash=71ab5dbee9c717c687e1b2c142bce563}{%
+           family={Moody},
+           familyi={M\bibinitperiod},
+           given={George\bibnamedelima B.},
+           giveni={G\bibinitperiod\bibinitdelim B\bibinitperiod}}}%
+        {{hash=07ec0b651afc3688b2dc4aecaa9f4fba}{%
+           family={Peng},
+           familyi={P\bibinitperiod},
+           given={Chung-Kang},
+           giveni={C\bibinithyphendelim K\bibinitperiod}}}%
+        {{hash=5f5c56c0c8f34aa567709e10df5afd57}{%
+           family={Stanley},
+           familyi={S\bibinitperiod},
+           given={H.\bibnamedelimi Eugene},
+           giveni={H\bibinitperiod\bibinitdelim E\bibinitperiod}}}%
+      }
+      \strng{namehash}{7f2a30c1b4510d3178ec23ac186fb23b}
+      \strng{fullhash}{99ff5ab6ac3f9e1b8b06c69e0c579fee}
+      \strng{bibnamehash}{99ff5ab6ac3f9e1b8b06c69e0c579fee}
+      \strng{authorbibnamehash}{99ff5ab6ac3f9e1b8b06c69e0c579fee}
+      \strng{authornamehash}{7f2a30c1b4510d3178ec23ac186fb23b}
+      \strng{authorfullhash}{99ff5ab6ac3f9e1b8b06c69e0c579fee}
+      \field{sortinit}{G}
+      \field{sortinithash}{32d67eca0634bf53703493fb1090a2e8}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Circulation}
+      \field{number}{23}
+      \field{title}{PhysioBank, PhysioToolkit, and PhysioNet: Components of a New Research Resource for Complex Physiologic Signals}
+      \field{volume}{101}
+      \field{year}{2000}
+      \field{pages}{e215\bibrangedash e220}
+      \range{pages}{-1}
+      \verb{doi}
+      \verb 10.1161/01.CIR.101.23.e215
+      \endverb
+    \endentry
+    \entry{kleppmann2017designing}{book}{}
+      \name{author}{1}{}{%
+        {{hash=34b8d5b1d29d175527a6642f3ec8a76d}{%
+           family={Kleppmann},
+           familyi={K\bibinitperiod},
+           given={Martin},
+           giveni={M\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {O'Reilly Media}%
+      }
+      \strng{namehash}{34b8d5b1d29d175527a6642f3ec8a76d}
+      \strng{fullhash}{34b8d5b1d29d175527a6642f3ec8a76d}
+      \strng{bibnamehash}{34b8d5b1d29d175527a6642f3ec8a76d}
+      \strng{authorbibnamehash}{34b8d5b1d29d175527a6642f3ec8a76d}
+      \strng{authornamehash}{34b8d5b1d29d175527a6642f3ec8a76d}
+      \strng{authorfullhash}{34b8d5b1d29d175527a6642f3ec8a76d}
+      \field{sortinit}{K}
+      \field{sortinithash}{c02bf6bff1c488450c352b40f5d853ab}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{isbn}{978-1449373320}
+      \field{title}{Designing Data-Intensive Applications}
+      \field{year}{2017}
+    \endentry
+    \entry{kreps2014questioning}{article}{}
+      \name{author}{1}{}{%
+        {{hash=1eb7552c6ea712a30e5b05e6f943e688}{%
+           family={Kreps},
+           familyi={K\bibinitperiod},
+           given={Jay},
+           giveni={J\bibinitperiod}}}%
+      }
+      \strng{namehash}{1eb7552c6ea712a30e5b05e6f943e688}
+      \strng{fullhash}{1eb7552c6ea712a30e5b05e6f943e688}
+      \strng{bibnamehash}{1eb7552c6ea712a30e5b05e6f943e688}
+      \strng{authorbibnamehash}{1eb7552c6ea712a30e5b05e6f943e688}
+      \strng{authornamehash}{1eb7552c6ea712a30e5b05e6f943e688}
+      \strng{authorfullhash}{1eb7552c6ea712a30e5b05e6f943e688}
+      \field{sortinit}{K}
+      \field{sortinithash}{c02bf6bff1c488450c352b40f5d853ab}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{O'Reilly Radar}
+      \field{note}{Online article}
+      \field{title}{Questioning the Lambda Architecture}
+      \field{year}{2014}
+    \endentry
+    \entry{kreps2011kafka}{inproceedings}{}
+      \name{author}{3}{}{%
+        {{hash=1eb7552c6ea712a30e5b05e6f943e688}{%
+           family={Kreps},
+           familyi={K\bibinitperiod},
+           given={Jay},
+           giveni={J\bibinitperiod}}}%
+        {{hash=f0758f2b7b5ca25d25bfae9f9629d17d}{%
+           family={Narkhede},
+           familyi={N\bibinitperiod},
+           given={Neha},
+           giveni={N\bibinitperiod}}}%
+        {{hash=762632644bfb48406439c48609c9497c}{%
+           family={Rao},
+           familyi={R\bibinitperiod},
+           given={Jun},
+           giveni={J\bibinitperiod}}}%
+      }
+      \strng{namehash}{410d77ed28aaaef357bb86242898553b}
+      \strng{fullhash}{410d77ed28aaaef357bb86242898553b}
+      \strng{bibnamehash}{410d77ed28aaaef357bb86242898553b}
+      \strng{authorbibnamehash}{410d77ed28aaaef357bb86242898553b}
+      \strng{authornamehash}{410d77ed28aaaef357bb86242898553b}
+      \strng{authorfullhash}{410d77ed28aaaef357bb86242898553b}
+      \field{sortinit}{K}
+      \field{sortinithash}{c02bf6bff1c488450c352b40f5d853ab}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Proceedings of the NetDB Workshop}
+      \field{title}{Kafka: A Distributed Messaging System for Log Processing}
+      \field{year}{2011}
+    \endentry
+    \entry{li2008sqi}{article}{}
+      \name{author}{3}{}{%
+        {{hash=faae44695a40f73f5432c16baa0cf69b}{%
+           family={Li},
+           familyi={L\bibinitperiod},
+           given={Qiao},
+           giveni={Q\bibinitperiod}}}%
+        {{hash=2193bac90baddb616fc4dcd2f366de81}{%
+           family={Mark},
+           familyi={M\bibinitperiod},
+           given={Roger\bibnamedelima G.},
+           giveni={R\bibinitperiod\bibinitdelim G\bibinitperiod}}}%
+        {{hash=b927e667e291a47a7437a9a8d631ed0e}{%
+           family={Clifford},
+           familyi={C\bibinitperiod},
+           given={Gari\bibnamedelima D.},
+           giveni={G\bibinitperiod\bibinitdelim D\bibinitperiod}}}%
+      }
+      \strng{namehash}{02834ea729c8d5e8ae9c52be7bce9a4b}
+      \strng{fullhash}{02834ea729c8d5e8ae9c52be7bce9a4b}
+      \strng{bibnamehash}{02834ea729c8d5e8ae9c52be7bce9a4b}
+      \strng{authorbibnamehash}{02834ea729c8d5e8ae9c52be7bce9a4b}
+      \strng{authornamehash}{02834ea729c8d5e8ae9c52be7bce9a4b}
+      \strng{authorfullhash}{02834ea729c8d5e8ae9c52be7bce9a4b}
+      \field{sortinit}{L}
+      \field{sortinithash}{7c47d417cecb1f4bd38d1825c427a61a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Physiological Measurement}
+      \field{number}{1}
+      \field{title}{Robust Heart Rate Estimation from Multiple Asynchronous Noisy Sources Using Signal Quality Indices and a Kalman Filter}
+      \field{volume}{29}
+      \field{year}{2008}
+      \field{pages}{15\bibrangedash 27}
+      \range{pages}{13}
+      \verb{doi}
+      \verb 10.1088/0967-3334/29/1/002
+      \endverb
+    \endentry
+    \entry{malmivuo1995bioelectromagnetism}{book}{}
+      \name{author}{2}{}{%
+        {{hash=4b6069415d285c1eb6703f9c6077d1c0}{%
+           family={Malmivuo},
+           familyi={M\bibinitperiod},
+           given={Jaakko},
+           giveni={J\bibinitperiod}}}%
+        {{hash=cf5fa3490cd9cac02d357ed7c50f4c3f}{%
+           family={Plonsey},
+           familyi={P\bibinitperiod},
+           given={Robert},
+           giveni={R\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {Oxford University Press}%
+      }
+      \strng{namehash}{c8f699d7a7100ee3810f2f668c697cbe}
+      \strng{fullhash}{c8f699d7a7100ee3810f2f668c697cbe}
+      \strng{bibnamehash}{c8f699d7a7100ee3810f2f668c697cbe}
+      \strng{authorbibnamehash}{c8f699d7a7100ee3810f2f668c697cbe}
+      \strng{authornamehash}{c8f699d7a7100ee3810f2f668c697cbe}
+      \strng{authorfullhash}{c8f699d7a7100ee3810f2f668c697cbe}
+      \field{sortinit}{M}
+      \field{sortinithash}{4625c616857f13d17ce56f7d4f97d451}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{isbn}{978-0195058239}
+      \field{title}{Bioelectromagnetism: Principles and Applications of Bioelectric and Biomagnetic Fields}
+      \field{year}{1995}
+    \endentry
+    \entry{marz2015big}{book}{}
+      \name{author}{2}{}{%
+        {{hash=1d6e00223d047c2bca7a3210abbc5419}{%
+           family={Marz},
+           familyi={M\bibinitperiod},
+           given={Nathan},
+           giveni={N\bibinitperiod}}}%
+        {{hash=08b198ab026405fa552b7aa69891e181}{%
+           family={Warren},
+           familyi={W\bibinitperiod},
+           given={James},
+           giveni={J\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {Manning Publications}%
+      }
+      \strng{namehash}{5bd03bd0dae9745ee5007270616c9edd}
+      \strng{fullhash}{5bd03bd0dae9745ee5007270616c9edd}
+      \strng{bibnamehash}{5bd03bd0dae9745ee5007270616c9edd}
+      \strng{authorbibnamehash}{5bd03bd0dae9745ee5007270616c9edd}
+      \strng{authornamehash}{5bd03bd0dae9745ee5007270616c9edd}
+      \strng{authorfullhash}{5bd03bd0dae9745ee5007270616c9edd}
+      \field{sortinit}{M}
+      \field{sortinithash}{4625c616857f13d17ce56f7d4f97d451}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{title}{Big Data: Principles and Best Practices of Scalable Realtime Data Systems}
+      \field{year}{2015}
+    \endentry
+    \entry{meng2016mllib}{article}{}
+      \name{author}{16}{}{%
+        {{hash=2776c215c8df7c9787aea25db59709d0}{%
+           family={Meng},
+           familyi={M\bibinitperiod},
+           given={Xiangrui},
+           giveni={X\bibinitperiod}}}%
+        {{hash=bc90a345235dd0a7de22ece150c1cbfe}{%
+           family={Bradley},
+           familyi={B\bibinitperiod},
+           given={Joseph},
+           giveni={J\bibinitperiod}}}%
+        {{hash=a3eacc6b98753794152fd446090f75e4}{%
+           family={Yavuz},
+           familyi={Y\bibinitperiod},
+           given={Burak},
+           giveni={B\bibinitperiod}}}%
+        {{hash=6424ebdda9959d56972b8f3f3df7fda5}{%
+           family={Sparks},
+           familyi={S\bibinitperiod},
+           given={Evan},
+           giveni={E\bibinitperiod}}}%
+        {{hash=721534f33cd88b3753e3bb459468783f}{%
+           family={Venkataraman},
+           familyi={V\bibinitperiod},
+           given={Shivaram},
+           giveni={S\bibinitperiod}}}%
+        {{hash=dfafd64b4da8908562304387c1d8152d}{%
+           family={Liu},
+           familyi={L\bibinitperiod},
+           given={Davies},
+           giveni={D\bibinitperiod}}}%
+        {{hash=f862b0e20cb9f0bd7e4874e1c3d63382}{%
+           family={Freeman},
+           familyi={F\bibinitperiod},
+           given={Jeremy},
+           giveni={J\bibinitperiod}}}%
+        {{hash=6ba4b98977e6f7fed608f58629caef6b}{%
+           family={Tsai},
+           familyi={T\bibinitperiod},
+           given={Db},
+           giveni={D\bibinitperiod}}}%
+        {{hash=808b93f12a815d35abc1cfbb8a1a4995}{%
+           family={Amde},
+           familyi={A\bibinitperiod},
+           given={Manish},
+           giveni={M\bibinitperiod}}}%
+        {{hash=986a2d6ae7825bc2c86c3b6b82dfacfe}{%
+           family={Owen},
+           familyi={O\bibinitperiod},
+           given={Sean},
+           giveni={S\bibinitperiod}}}%
+        {{hash=eff8d4a27c408042f6c8ada2add01830}{%
+           family={Xin},
+           familyi={X\bibinitperiod},
+           given={Doris},
+           giveni={D\bibinitperiod}}}%
+        {{hash=125f074bf46e8a83339101fd94d088e2}{%
+           family={Xin},
+           familyi={X\bibinitperiod},
+           given={Reynold},
+           giveni={R\bibinitperiod}}}%
+        {{hash=2b80efa845ff86794acc83783899dcf0}{%
+           family={Franklin},
+           familyi={F\bibinitperiod},
+           given={Michael\bibnamedelima J.},
+           giveni={M\bibinitperiod\bibinitdelim J\bibinitperiod}}}%
+        {{hash=f161d14a20ad7762fb7fb386f8427d91}{%
+           family={Zadeh},
+           familyi={Z\bibinitperiod},
+           given={Reza},
+           giveni={R\bibinitperiod}}}%
+        {{hash=00dc518b94dfa6349c86e70661a1a5ef}{%
+           family={Zaharia},
+           familyi={Z\bibinitperiod},
+           given={Matei},
+           giveni={M\bibinitperiod}}}%
+        {{hash=70e0fe957473b80f1b1b5dcb8e99d31e}{%
+           family={Talwalkar},
+           familyi={T\bibinitperiod},
+           given={Ameet},
+           giveni={A\bibinitperiod}}}%
+      }
+      \strng{namehash}{031bacb1553b1abd75075a15b814aaf0}
+      \strng{fullhash}{6d07d7c0150d07d71212258b60fe392d}
+      \strng{bibnamehash}{6d07d7c0150d07d71212258b60fe392d}
+      \strng{authorbibnamehash}{6d07d7c0150d07d71212258b60fe392d}
+      \strng{authornamehash}{031bacb1553b1abd75075a15b814aaf0}
+      \strng{authorfullhash}{6d07d7c0150d07d71212258b60fe392d}
+      \field{sortinit}{M}
+      \field{sortinithash}{4625c616857f13d17ce56f7d4f97d451}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Journal of Machine Learning Research}
+      \field{number}{34}
+      \field{title}{{MLlib}: Machine Learning in Apache Spark}
+      \field{volume}{17}
+      \field{year}{2016}
+      \field{pages}{1\bibrangedash 7}
+      \range{pages}{7}
+    \endentry
+    \entry{moody2001impact}{article}{}
+      \name{author}{2}{}{%
+        {{hash=71ab5dbee9c717c687e1b2c142bce563}{%
+           family={Moody},
+           familyi={M\bibinitperiod},
+           given={George\bibnamedelima B.},
+           giveni={G\bibinitperiod\bibinitdelim B\bibinitperiod}}}%
+        {{hash=2193bac90baddb616fc4dcd2f366de81}{%
+           family={Mark},
+           familyi={M\bibinitperiod},
+           given={Roger\bibnamedelima G.},
+           giveni={R\bibinitperiod\bibinitdelim G\bibinitperiod}}}%
+      }
+      \strng{namehash}{c4df7241023127cc650d6cb0e52f20da}
+      \strng{fullhash}{c4df7241023127cc650d6cb0e52f20da}
+      \strng{bibnamehash}{c4df7241023127cc650d6cb0e52f20da}
+      \strng{authorbibnamehash}{c4df7241023127cc650d6cb0e52f20da}
+      \strng{authornamehash}{c4df7241023127cc650d6cb0e52f20da}
+      \strng{authorfullhash}{c4df7241023127cc650d6cb0e52f20da}
+      \field{sortinit}{M}
+      \field{sortinithash}{4625c616857f13d17ce56f7d4f97d451}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{IEEE Engineering in Medicine and Biology Magazine}
+      \field{number}{3}
+      \field{title}{The Impact of the {MIT-BIH} Arrhythmia Database}
+      \field{volume}{20}
+      \field{year}{2001}
+      \field{pages}{45\bibrangedash 50}
+      \range{pages}{6}
+      \verb{doi}
+      \verb 10.1109/51.932724
+      \endverb
+    \endentry
+    \entry{neumann2011efficiently}{inproceedings}{}
+      \name{author}{1}{}{%
+        {{hash=856106a72d787bcea4281fca718cd7d7}{%
+           family={Neumann},
+           familyi={N\bibinitperiod},
+           given={Thomas},
+           giveni={T\bibinitperiod}}}%
+      }
+      \strng{namehash}{856106a72d787bcea4281fca718cd7d7}
+      \strng{fullhash}{856106a72d787bcea4281fca718cd7d7}
+      \strng{bibnamehash}{856106a72d787bcea4281fca718cd7d7}
+      \strng{authorbibnamehash}{856106a72d787bcea4281fca718cd7d7}
+      \strng{authornamehash}{856106a72d787bcea4281fca718cd7d7}
+      \strng{authorfullhash}{856106a72d787bcea4281fca718cd7d7}
+      \field{sortinit}{N}
+      \field{sortinithash}{22369a73d5f88983a108b63f07f37084}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Proceedings of the VLDB Endowment}
+      \field{number}{9}
+      \field{title}{Efficiently Compiling Efficient Query Plans for Modern Hardware}
+      \field{volume}{4}
+      \field{year}{2011}
+      \field{pages}{539\bibrangedash 550}
+      \range{pages}{12}
+      \verb{doi}
+      \verb 10.14778/2002938.2002940
+      \endverb
+    \endentry
+    \entry{odersky2008programming}{book}{}
+      \name{author}{3}{}{%
+        {{hash=887f509975b0ec9ebba9dfae96d0c454}{%
+           family={Odersky},
+           familyi={O\bibinitperiod},
+           given={Martin},
+           giveni={M\bibinitperiod}}}%
+        {{hash=6ebdee3333bf85e58c1722ec97f04374}{%
+           family={Spoon},
+           familyi={S\bibinitperiod},
+           given={Lex},
+           giveni={L\bibinitperiod}}}%
+        {{hash=4f73d3c9fa69ceb9612bb63bdb7f5db5}{%
+           family={Venners},
+           familyi={V\bibinitperiod},
+           given={Bill},
+           giveni={B\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {Artima Press}%
+      }
+      \strng{namehash}{eff3537bbf7066162eef3ecdbb645557}
+      \strng{fullhash}{eff3537bbf7066162eef3ecdbb645557}
+      \strng{bibnamehash}{eff3537bbf7066162eef3ecdbb645557}
+      \strng{authorbibnamehash}{eff3537bbf7066162eef3ecdbb645557}
+      \strng{authornamehash}{eff3537bbf7066162eef3ecdbb645557}
+      \strng{authorfullhash}{eff3537bbf7066162eef3ecdbb645557}
+      \field{sortinit}{O}
+      \field{sortinithash}{2cd7140a07aea5341f9e2771efe90aae}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{title}{Programming in {Scala}: A Comprehensive Step-by-Step Guide}
+      \field{year}{2008}
+    \endentry
+    \entry{pan1985realtime}{article}{}
+      \name{author}{2}{}{%
+        {{hash=ccdc3e3d241b1ce26d7c7d2405695bca}{%
+           family={Pan},
+           familyi={P\bibinitperiod},
+           given={Jiapu},
+           giveni={J\bibinitperiod}}}%
+        {{hash=eb83740709bd91915efe2912ce4ea048}{%
+           family={Tompkins},
+           familyi={T\bibinitperiod},
+           given={Willis\bibnamedelima J.},
+           giveni={W\bibinitperiod\bibinitdelim J\bibinitperiod}}}%
+      }
+      \strng{namehash}{5e252c476d27bcdedcda3919fec475d6}
+      \strng{fullhash}{5e252c476d27bcdedcda3919fec475d6}
+      \strng{bibnamehash}{5e252c476d27bcdedcda3919fec475d6}
+      \strng{authorbibnamehash}{5e252c476d27bcdedcda3919fec475d6}
+      \strng{authornamehash}{5e252c476d27bcdedcda3919fec475d6}
+      \strng{authorfullhash}{5e252c476d27bcdedcda3919fec475d6}
+      \field{sortinit}{P}
+      \field{sortinithash}{ff3bcf24f47321b42cb156c2cc8a8422}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{IEEE Transactions on Biomedical Engineering}
+      \field{number}{3}
+      \field{title}{A Real-Time {QRS} Detection Algorithm}
+      \field{volume}{32}
+      \field{year}{1985}
+      \field{pages}{230\bibrangedash 236}
+      \range{pages}{7}
+      \verb{doi}
+      \verb 10.1109/TBME.1985.325532
+      \endverb
+    \endentry
+    \entry{sakib2021kaggle}{misc}{}
+      \name{author}{1}{}{%
+        {{hash=3b5319d76cdd13caf50ac8b95063bd13}{%
+           family={Sakib},
+           familyi={S\bibinitperiod},
+           given={Sadman},
+           giveni={S\bibinitperiod}}}%
+      }
+      \strng{namehash}{3b5319d76cdd13caf50ac8b95063bd13}
+      \strng{fullhash}{3b5319d76cdd13caf50ac8b95063bd13}
+      \strng{bibnamehash}{3b5319d76cdd13caf50ac8b95063bd13}
+      \strng{authorbibnamehash}{3b5319d76cdd13caf50ac8b95063bd13}
+      \strng{authornamehash}{3b5319d76cdd13caf50ac8b95063bd13}
+      \strng{authorfullhash}{3b5319d76cdd13caf50ac8b95063bd13}
+      \field{sortinit}{S}
+      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{howpublished}{Kaggle}
+      \field{note}{Versione tabellare preprocessata del MIT-BIH e di altri corpus PhysioNet}
+      \field{title}{{ECG Arrhythmia Classification Dataset}}
+      \field{year}{2021}
+      \verb{urlraw}
+      \verb https://www.kaggle.com/datasets/sadmansakib7/ecg-arrhythmia-classification-dataset
+      \endverb
+      \verb{url}
+      \verb https://www.kaggle.com/datasets/sadmansakib7/ecg-arrhythmia-classification-dataset
+      \endverb
+    \endentry
+    \entry{sakib2021edge}{incollection}{}
+      \name{author}{3}{}{%
+        {{hash=3b5319d76cdd13caf50ac8b95063bd13}{%
+           family={Sakib},
+           familyi={S\bibinitperiod},
+           given={Sadman},
+           giveni={S\bibinitperiod}}}%
+        {{hash=2639840435a0927c78003e5fa4aee286}{%
+           family={Fouda},
+           familyi={F\bibinitperiod},
+           given={Mostafa},
+           giveni={M\bibinitperiod}}}%
+        {{hash=d5d96b3639b8daee7f0dd310fc54ce8e}{%
+           family={{Fadlullah, Zubair Md}},
+           familyi={F\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {Taylor \& Francis}%
+      }
+      \strng{namehash}{1dbb4581d6a2eadea2d21c6a554f6e2d}
+      \strng{fullhash}{1dbb4581d6a2eadea2d21c6a554f6e2d}
+      \strng{bibnamehash}{1dbb4581d6a2eadea2d21c6a554f6e2d}
+      \strng{authorbibnamehash}{1dbb4581d6a2eadea2d21c6a554f6e2d}
+      \strng{authornamehash}{1dbb4581d6a2eadea2d21c6a554f6e2d}
+      \strng{authorfullhash}{1dbb4581d6a2eadea2d21c6a554f6e2d}
+      \field{sortinit}{S}
+      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Artificial Intelligence for Edge Computing}
+      \field{title}{Harnessing Artificial Intelligence for Secure {ECG} Analytics at the Edge for Cardiac Arrhythmia Classification}
+      \field{year}{2021}
+      \verb{doi}
+      \verb 10.1201/9781003028635-11
+      \endverb
+    \endentry
+    \entry{sculley2015hidden}{inproceedings}{}
+      \name{author}{10}{}{%
+        {{hash=c2d591025fb99d562114efe82ba39a2b}{%
+           family={Sculley},
+           familyi={S\bibinitperiod},
+           given={David},
+           giveni={D\bibinitperiod}}}%
+        {{hash=a8fbce13fcffb9703bea69a5d8d49ff4}{%
+           family={Holt},
+           familyi={H\bibinitperiod},
+           given={Gary},
+           giveni={G\bibinitperiod}}}%
+        {{hash=299065af672db40823b358aab4a8ea22}{%
+           family={Golovin},
+           familyi={G\bibinitperiod},
+           given={Daniel},
+           giveni={D\bibinitperiod}}}%
+        {{hash=c0ab7dcbc912f87d3a70c27d10c4e6ea}{%
+           family={Davydov},
+           familyi={D\bibinitperiod},
+           given={Eugene},
+           giveni={E\bibinitperiod}}}%
+        {{hash=7ef3e78c36cff7e43c38c516102ce045}{%
+           family={Phillips},
+           familyi={P\bibinitperiod},
+           given={Todd},
+           giveni={T\bibinitperiod}}}%
+        {{hash=cd9a1c028ba3c4be93eaec6cbaa97ff5}{%
+           family={Ebner},
+           familyi={E\bibinitperiod},
+           given={Dietmar},
+           giveni={D\bibinitperiod}}}%
+        {{hash=8c87f614964035eb6a03be6ea98943f4}{%
+           family={Chaudhary},
+           familyi={C\bibinitperiod},
+           given={Vinay},
+           giveni={V\bibinitperiod}}}%
+        {{hash=dd67473938345c135f49444d372c2123}{%
+           family={Young},
+           familyi={Y\bibinitperiod},
+           given={Michael},
+           giveni={M\bibinitperiod}}}%
+        {{hash=34993426bab529853d14e2411aa231f9}{%
+           family={Crespo},
+           familyi={C\bibinitperiod},
+           given={Jean-Francois},
+           giveni={J\bibinithyphendelim F\bibinitperiod}}}%
+        {{hash=d2122cc82cc772d6de488437ba012729}{%
+           family={Dennison},
+           familyi={D\bibinitperiod},
+           given={Dan},
+           giveni={D\bibinitperiod}}}%
+      }
+      \strng{namehash}{3e7586ba613e6a0afc53b7e9cb83a814}
+      \strng{fullhash}{dc4cf594b8b95c2e313ca1e585dc47d3}
+      \strng{bibnamehash}{dc4cf594b8b95c2e313ca1e585dc47d3}
+      \strng{authorbibnamehash}{dc4cf594b8b95c2e313ca1e585dc47d3}
+      \strng{authornamehash}{3e7586ba613e6a0afc53b7e9cb83a814}
+      \strng{authorfullhash}{dc4cf594b8b95c2e313ca1e585dc47d3}
+      \field{sortinit}{S}
+      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Advances in Neural Information Processing Systems}
+      \field{title}{Hidden Technical Debt in Machine Learning Systems}
+      \field{volume}{28}
+      \field{year}{2015}
+    \endentry
+    \entry{taskforce1996hrv}{article}{}
+      \name{author}{1}{}{%
+        {{hash=e3af9d001e56b1a42ee6871255e2643b}{%
+           family={{Task Force of the European Society of Cardiology and the North American Society of Pacing and Electrophysiology}},
+           familyi={T\bibinitperiod}}}%
+      }
+      \strng{namehash}{e3af9d001e56b1a42ee6871255e2643b}
+      \strng{fullhash}{e3af9d001e56b1a42ee6871255e2643b}
+      \strng{bibnamehash}{e3af9d001e56b1a42ee6871255e2643b}
+      \strng{authorbibnamehash}{e3af9d001e56b1a42ee6871255e2643b}
+      \strng{authornamehash}{e3af9d001e56b1a42ee6871255e2643b}
+      \strng{authorfullhash}{e3af9d001e56b1a42ee6871255e2643b}
+      \field{sortinit}{T}
+      \field{sortinithash}{9af77f0292593c26bde9a56e688eaee9}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Circulation}
+      \field{number}{5}
+      \field{title}{Heart Rate Variability: Standards of Measurement, Physiological Interpretation, and Clinical Use}
+      \field{volume}{93}
+      \field{year}{1996}
+      \field{pages}{1043\bibrangedash 1065}
+      \range{pages}{23}
+      \verb{doi}
+      \verb 10.1161/01.CIR.93.5.1043
+      \endverb
+    \endentry
+    \entry{zaharia2010spark}{inproceedings}{}
+      \name{author}{5}{}{%
+        {{hash=00dc518b94dfa6349c86e70661a1a5ef}{%
+           family={Zaharia},
+           familyi={Z\bibinitperiod},
+           given={Matei},
+           giveni={M\bibinitperiod}}}%
+        {{hash=c5a8ae0d5f065be17aae440a9eb11c79}{%
+           family={Chowdhury},
+           familyi={C\bibinitperiod},
+           given={Mosharaf},
+           giveni={M\bibinitperiod}}}%
+        {{hash=2b80efa845ff86794acc83783899dcf0}{%
+           family={Franklin},
+           familyi={F\bibinitperiod},
+           given={Michael\bibnamedelima J.},
+           giveni={M\bibinitperiod\bibinitdelim J\bibinitperiod}}}%
+        {{hash=8d2fd528d2484047352789c731e250a5}{%
+           family={Shenker},
+           familyi={S\bibinitperiod},
+           given={Scott},
+           giveni={S\bibinitperiod}}}%
+        {{hash=51d9ef26181e2e8a9dc546b401e0bb26}{%
+           family={Stoica},
+           familyi={S\bibinitperiod},
+           given={Ion},
+           giveni={I\bibinitperiod}}}%
+      }
+      \strng{namehash}{43c304856562a1cbfaf241dac3427533}
+      \strng{fullhash}{6f76db0409769a7411dc03216ecf2122}
+      \strng{bibnamehash}{6f76db0409769a7411dc03216ecf2122}
+      \strng{authorbibnamehash}{6f76db0409769a7411dc03216ecf2122}
+      \strng{authornamehash}{43c304856562a1cbfaf241dac3427533}
+      \strng{authorfullhash}{6f76db0409769a7411dc03216ecf2122}
+      \field{sortinit}{Z}
+      \field{sortinithash}{96892c0b0a36bb8557c40c49813d48b3}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Proceedings of the 2nd USENIX Conference on Hot Topics in Cloud Computing (HotCloud)}
+      \field{title}{Spark: Cluster Computing with Working Sets}
+      \field{year}{2010}
+    \endentry
+    \entry{zaharia2016apache}{article}{}
+      \name{author}{14}{}{%
+        {{hash=00dc518b94dfa6349c86e70661a1a5ef}{%
+           family={Zaharia},
+           familyi={Z\bibinitperiod},
+           given={Matei},
+           giveni={M\bibinitperiod}}}%
+        {{hash=5f4b66d7cacadea3e7b21ebcc1706643}{%
+           family={Xin},
+           familyi={X\bibinitperiod},
+           given={Reynold\bibnamedelima S.},
+           giveni={R\bibinitperiod\bibinitdelim S\bibinitperiod}}}%
+        {{hash=54749885e1243b01239492a603b6a69e}{%
+           family={Wendell},
+           familyi={W\bibinitperiod},
+           given={Patrick},
+           giveni={P\bibinitperiod}}}%
+        {{hash=f8b27ed8b503bc3e7b32fc53bace3697}{%
+           family={Das},
+           familyi={D\bibinitperiod},
+           given={Tathagata},
+           giveni={T\bibinitperiod}}}%
+        {{hash=8eafad8289b06f72c2e8b7caf80a413a}{%
+           family={Armbrust},
+           familyi={A\bibinitperiod},
+           given={Michael},
+           giveni={M\bibinitperiod}}}%
+        {{hash=aec50de877bd49b0c55f7067c573cd4f}{%
+           family={Dave},
+           familyi={D\bibinitperiod},
+           given={Ankur},
+           giveni={A\bibinitperiod}}}%
+        {{hash=2776c215c8df7c9787aea25db59709d0}{%
+           family={Meng},
+           familyi={M\bibinitperiod},
+           given={Xiangrui},
+           giveni={X\bibinitperiod}}}%
+        {{hash=365d3ec4a85f5051e18fc7c1e63b210b}{%
+           family={Rosen},
+           familyi={R\bibinitperiod},
+           given={Josh},
+           giveni={J\bibinitperiod}}}%
+        {{hash=721534f33cd88b3753e3bb459468783f}{%
+           family={Venkataraman},
+           familyi={V\bibinitperiod},
+           given={Shivaram},
+           giveni={S\bibinitperiod}}}%
+        {{hash=2b80efa845ff86794acc83783899dcf0}{%
+           family={Franklin},
+           familyi={F\bibinitperiod},
+           given={Michael\bibnamedelima J.},
+           giveni={M\bibinitperiod\bibinitdelim J\bibinitperiod}}}%
+        {{hash=dfd14c69d2338ce9cf556c819a32d286}{%
+           family={Ghodsi},
+           familyi={G\bibinitperiod},
+           given={Ali},
+           giveni={A\bibinitperiod}}}%
+        {{hash=fa1b97983892cfef89de6a1b63f97bcc}{%
+           family={Gonzalez},
+           familyi={G\bibinitperiod},
+           given={Joseph},
+           giveni={J\bibinitperiod}}}%
+        {{hash=8d2fd528d2484047352789c731e250a5}{%
+           family={Shenker},
+           familyi={S\bibinitperiod},
+           given={Scott},
+           giveni={S\bibinitperiod}}}%
+        {{hash=51d9ef26181e2e8a9dc546b401e0bb26}{%
+           family={Stoica},
+           familyi={S\bibinitperiod},
+           given={Ion},
+           giveni={I\bibinitperiod}}}%
+      }
+      \strng{namehash}{cce0abc1ace40c9e86f6ea315d762f0f}
+      \strng{fullhash}{db58da147f3a9dc425d70c1d3ba53b07}
+      \strng{bibnamehash}{db58da147f3a9dc425d70c1d3ba53b07}
+      \strng{authorbibnamehash}{db58da147f3a9dc425d70c1d3ba53b07}
+      \strng{authornamehash}{cce0abc1ace40c9e86f6ea315d762f0f}
+      \strng{authorfullhash}{db58da147f3a9dc425d70c1d3ba53b07}
+      \field{sortinit}{Z}
+      \field{sortinithash}{96892c0b0a36bb8557c40c49813d48b3}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Communications of the ACM}
+      \field{number}{11}
+      \field{title}{Apache Spark: A Unified Engine for Big Data Processing}
+      \field{volume}{59}
+      \field{year}{2016}
+      \field{pages}{56\bibrangedash 65}
+      \range{pages}{10}
+      \verb{doi}
+      \verb 10.1145/2934664
+      \endverb
+    \endentry
+  \enddatalist
+\endrefsection
+\endinput
+
