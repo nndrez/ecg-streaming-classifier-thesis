@@ -1,25 +1,10 @@
-Si presenta un sistema per la classificazione \emph{near-real-time} di flussi ECG (elettrocardiogramma) basato su un approccio \textbf{ibrido batch/streaming}.
+Il monitoraggio continuo dell'elettrocardiogramma impone di classificare ogni battito mentre il segnale arriva, rispettando vincoli di latenza e affidabilità.
+Molti lavori sulla classificazione automatica si limitano all'addestramento e alla valutazione offline, senza collegare ingestion, inferenza e persistenza in un'architettura eseguibile.
 
-Il problema è affrontato come una pipeline di decisione distribuita nella quale l'addestramento del modello avviene in modo \emph{off-line} su dati storici, mentre l'inferenza è eseguita su eventi in arrivo con vincoli di latenza compatibili con scenari di monitoraggio continuo.
-L'architettura è stata implementata in \textbf{Scala} e combina un layer di addestramento batch, realizzato con \textbf{Apache Spark MLlib}, e un layer di inferenza in streaming, realizzato con \textbf{Spark Structured Streaming} che consuma messaggi da un broker \textbf{Kafka}.
+Si propone una pipeline end-to-end per la classificazione \emph{near-real-time} di battiti ECG, con approccio ibrido batch/streaming.
+Un \texttt{RandomForestClassifier}, addestrato in batch su feature a livello di battito dal dataset MIT-BIH in formato tabulare, viene distribuito come artefatto e applicato in streaming da Apache Spark Structured Streaming su eventi Kafka pubblicati da un simulatore edge.
+Le predizioni sono scritte su Delta Lake con checkpointing, garantendo recupero dopo failure e disaccoppiamento tra producer e consumer.
+L'implementazione in Scala è riproducibile con Docker e \texttt{sbt}.
 
-Le \emph{feature} utilizzate sono estratte a livello di battito dal dataset Kaggle \emph{ECG Arrhythmia Classification Dataset} e riflettono contesto ritmico locale (intervalli \texttt{pre-RR} e \texttt{post-RR}), ampiezze delle onde P/T e del complesso QRS, durate degli intervali PQ/QT/ST e descrittori morfologici del QRS su due derivazioni (lead~II e V5).
-Questa rappresentazione riduce la dimensionalità del problema e consente di applicare modelli di \emph{classical machine learning} su vettori strutturati, costruiti tramite \texttt{VectorAssembler}.
-
-Il modello scelto per l'implementazione sperimentale è un \texttt{RandomForestClassifier} configurato con 100 alberi e profondità massima pari a 15, in modo da bilanciare capacità discriminativa, robustezza rispetto al rumore e semplicità di deployment.
-
-La pipeline complessiva prevede quattro fasi principali:
-\begin{enumerate}
-  \item Preparazione e pulizia dei dati storici per l'addestramento, comprensiva di normalizzazione delle feature e gestione degli outlier;
-  \item Serializzazione e deploy del modello su storage locale, così da rendere l'inferenza indipendente dalla fase di training;
-  \item Simulazione di ingestion in \emph{real-time} tramite il componente \texttt{EcgPatientSimulator} che pubblica payload JSON sul topic \texttt{ecg-input-stream};
-  \item Lettura dai topic Kafka, deserializzazione dinamica con \texttt{from\_json}, applicazione del modello nel componente \texttt{EcgStreamingPredictor} e persistenza dei risultati in \textbf{Delta Lake} con \emph{checkpointing} e \texttt{foreachBatch} per garantire tolleranza ai fault, recupero in caso di failure e comportamento \emph{exactly-once} a livello di micro-batch.
-\end{enumerate}
-
-La valutazione sperimentale adotta il \texttt{MulticlassClassificationEvaluator} per misurare l'accuratezza e analizzare il bilanciamento tra falsi positivi e falsi negativi, con particolare attenzione all'impatto clinico di quest'ultimi.
-
-Accanto alla qualità predittiva, si discutono \emph{latenze end-to-end}, \emph{throughput} e comportamento della pipeline in presenza di componenti disaccoppiati, evidenziando il ruolo della messaggistica asincrona e dello storage transazionale.
-
-I capitoli sui risultati e sulle conclusioni discutono metriche, latenza e limiti del prototipo; tra le estensioni possibili figurano modelli deep sul segnale raw, feature su edge device e dashboard su Delta Lake.
-
-Il contributo principale risiede nell'integrazione end-to-end di componenti disaccoppiati (simulatore edge, broker Kafka, Spark Structured Streaming, Delta Lake) in un unico repository Scala riproducibile, con attenzione alle implicazioni cliniche degli errori di classificazione e alle proprietà non funzionali richieste da scenari di monitoraggio cardiaco continuo.
+Sul test set si osservano accuratezza globale circa al 96\% e latenza end-to-end tipicamente sub-secondo, con limiti sulle classi rare e implicazioni cliniche degli errori di classificazione analizzate nel contesto delle super-classi AAMI.
+Il significato del lavoro è dimostrare che Kafka, Spark e Delta Lake possono comporsi in un sistema modulare per dati biomedici strutturati, fungendo da template per pipeline e-Health che uniscano qualità predittiva e proprietà non funzionali di un deployment distribuito.

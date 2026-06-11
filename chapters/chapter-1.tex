@@ -11,7 +11,7 @@ La sequenza temporale di queste fasi si traduce, sul tracciato, in segmenti e in
 
 La morfologia tipica di un battito in ritmo sinusale è costituita dalle onde \textbf{P}, \textbf{QRS} e \textbf{T}:
 l'onda P corrisponde alla depolarizzazione atriale; il complesso QRS alla depolarizzazione ventricolare (con i deflessi Q, R e S che descrivono l'attivazione sequenziale del setto e delle pareti ventricolari); l'onda T alla ripolarizzazione ventricolare.
-Tra questi deflessi si misurano il \textbf{segmento PR} (conduzione atrioventricolare), il \textbf{segmento ST} (fase di ripolarizzazione precoce ventricolare) e l'\textbf{intervallo QT} (durata dell'attività ventricolare totale), spesso corretto per la frequenza cardiaca (QTc) nelle valutazioni cliniche.
+Tra questi deflessi si misurano l'\textbf{intervallo PR} (conduzione atrioventricolare), il \textbf{segmento ST} (fase di ripolarizzazione precoce ventricolare) e l'\textbf{intervallo QT} (durata dell'attività ventricolare totale), spesso corretto per la frequenza cardiaca (QTc) nelle valutazioni cliniche.
 
 La Figura~\ref{fig:ecg-morfologia} sintetizza, in forma schematica, la relazione tra fasi elettriche e morfologia osservabile.
 In applicazioni automatiche, la forma locale del QRS e la durata degli intervalli costituiscono descrittori ad alta densità informativa per la distinzione tra battiti normali e patologici~\cite{dechazal2004automatic}.
@@ -28,7 +28,7 @@ In applicazioni automatiche, la forma locale del QRS e la durata degli intervall
     dist/.style={font=\footnotesize}
   ]
     \draw[->] (-0.15,0) -- (11.5,0) node[below, font=\footnotesize] {tempo};
-    \draw[->] (0,-0.95) -- (0,1.55) node[left, font=\footnotesize, rotate=90, anchor=south] {ampiezza};
+    \draw[->] (0,-1.02) -- (0,1.68) node[left, font=\footnotesize, rotate=90, anchor=south] {ampiezza};
     \coordinate (Pon)  at (0.9,0);
     \coordinate (Ppk)  at (1.35,0.24);
     \coordinate (Poff) at (2.05,0);
@@ -50,28 +50,29 @@ In applicazioni automatiche, la forma locale del QRS e la durata degli intervall
       .. controls (6.2,0.06) and (6.6,0.38) .. (Tpk)
       .. controls (7.4,0.38) and (8.2,0.06) .. (Toff)
       -- (10.2,0);
-    \node[lbl] at (Ppk)  [above=3pt] {P};
-    \node[lbl] at (Rpk)  [above=3pt] {R};
-    \node[lbl] at (Tpk)  [above=3pt] {T};
-    \node[lbl, anchor=east]  at ([xshift=-2pt]Qpk) {Q};
-    \node[lbl, anchor=west]  at ([xshift= 2pt]Spk) {S};
-    \def\yPR{1.38}
+    \node[lbl] at (Ppk) [above=3pt] {P};
+    \node[lbl, anchor=west] at ([xshift=5pt]Rpk) {R};
+    \node[lbl] at (Tpk) [above=3pt] {T};
+    \node[lbl, anchor=north east] at ([xshift=-4pt, yshift=-5pt]Qpk) {Q};
+    \node[lbl, anchor=north west] at ([xshift=4pt, yshift=-5pt]Spk) {S};
+    \def\yPR{1.52}
     \draw[guide] (Pon)  -- (Pon |- 0,\yPR);
     \draw[guide] (Qon)  -- (Qon |- 0,\yPR);
     \draw[brace, <->] (Pon |- 0,\yPR) -- node[above=4pt, dist] {PR} (Qon |- 0,\yPR);
-    \def\yQRS{1.12}
+    \def\yQRS{1.34}
     \draw[guide] (Qon) -- (Qon |- 0,\yQRS);
     \draw[guide] (Jpt) -- (Jpt |- 0,\yQRS);
-    \draw[brace, <->] (Qon |- 0,\yQRS) -- node[above=4pt, dist] {QRS} (Jpt |- 0,\yQRS);
-    \def\yST{0.20}
-    \draw[guide] (Jpt |- 0,\yST) -- (Ton |- 0,\yST);
-    \node[dist, above=2pt] at ($(Jpt)!0.5!(Ton)$) {ST};
-    \def\yQT{-0.72}
+    \draw[brace, <->] (Qon |- 0,\yQRS) -- node[above=4pt, dist, pos=0.18] {QRS} (Jpt |- 0,\yQRS);
+    \def\yST{0.44}
+    \draw[guide] (Jpt) -- (Jpt |- 0,\yST);
+    \draw[guide] (Ton) -- (Ton |- 0,\yST);
+    \draw[brace, <->] (Jpt |- 0,\yST) -- node[above=4pt, dist] {ST} (Ton |- 0,\yST);
+    \def\yQT{-0.90}
     \draw[guide] (Qon)  -- (Qon |- 0,\yQT);
     \draw[guide] (Toff) -- (Toff |- 0,\yQT);
     \draw[brace, <->] (Qon |- 0,\yQT) -- node[below=4pt, dist] {QT} (Toff |- 0,\yQT);
   \end{tikzpicture}
-  \caption{Morfologia schematica di un battito ECG in ritmo sinusale: deflessioni P, Q, R, S e T; intervalli PR e QT; durata del complesso QRS; segmento ST.}
+  \caption{Morfologia schematica di un battito ECG in ritmo sinusale: deflessioni P, Q, R, S e T; intervallo PR, durata del complesso QRS, segmento ST e intervallo QT.}
   \label{fig:ecg-morfologia}
 \end{figure}
 

@@ -94,10 +94,17 @@
     \cleardoublepage
 
     \cleardoublepage
-    \chapter*{Sommario}
     \addcontentsline{toc}{chapter}{Sommario}
     \label{ch:sommario}
-    \input{chapters/abstract}
+    \vspace*{\fill}
+    \begin{center}
+        {\LARGE\bfseries Sommario}\par
+        \vspace{2\baselineskip}
+        \begin{minipage}{0.85\textwidth}
+            \input{chapters/abstract}
+        \end{minipage}
+    \end{center}
+    \vspace*{\fill}
 
     \cleardoublepage
     \setcounter{tocdepth}{1}

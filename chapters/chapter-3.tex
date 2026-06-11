@@ -12,21 +12,22 @@ La Figura~\ref{fig:lambda-schema} e la Tabella~\ref{tab:lambda-kappa-confronto} 
 \begin{figure}[H]
   \centering
   \begin{tikzpicture}[
-    node distance=0.9cm and 1.2cm,
-    layer/.style={rectangle, draw, rounded corners, minimum width=2.4cm, minimum height=0.8cm, align=center, font=\small},
-    store/.style={cylinder, draw, shape border rotate=90, aspect=0.22, minimum height=0.9cm, minimum width=1.4cm, align=center, font=\footnotesize},
+    node distance=0.85cm and 2.0cm,
+    layer/.style={rectangle, draw, rounded corners, minimum width=2.6cm, minimum height=0.85cm, align=center, font=\small},
+    store/.style={cylinder, draw, shape border rotate=90, aspect=0.22, minimum height=1.0cm, minimum width=1.6cm, align=center, font=\footnotesize},
     arrow/.style={-{Stealth[length=2mm]}, thick}
   ]
     \node[store] (ingest) {Event log};
-    \node[layer, above=of ingest] (batch) {Batch layer};
-    \node[layer, right=1.8cm of batch] (speed) {Speed layer};
-    \node[layer, above=1.1cm of ingest] (serve) {Serving layer};
-% 
-    \draw[arrow] (ingest) -- (batch);
-    \draw[arrow] (ingest) -- (speed);
-    \draw[arrow] (batch) -- (serve);
-    \draw[arrow] (speed) -- (serve);
-    \node[font=\footnotesize, below=0.1cm of ingest] {Vista Lambda};
+    \node[layer, above left=1.2cm and 0.1cm of ingest] (batch) {Batch layer};
+    \node[layer, above right=1.2cm and 0.1cm of ingest] (speed) {Speed layer};
+    \node[layer, above=2.6cm of ingest] (serve) {Serving layer};
+
+    \draw[arrow] (ingest.north) -- ++(0,0.5) -| (batch.south);
+    \draw[arrow] (ingest.north) -- ++(0,0.5) -| (speed.south);
+    \draw[arrow] (batch.north) -- (serve.south);
+    \draw[arrow] (speed.north) -- (serve.south);
+
+    \node[font=\footnotesize, below=0.35cm of ingest] {Vista Lambda};
   \end{tikzpicture}
   \caption{Schema concettuale dell'architettura Lambda: batch e speed layer alimentano il serving.}
   \label{fig:lambda-schema}
@@ -78,19 +79,27 @@ La Figura~\ref{fig:architettura-logica} mostra il flusso logico dei dati; la Fig
 \begin{figure}[H]
   \centering
   \begin{tikzpicture}[
-    node distance=1.1cm and 1.4cm,
-    block/.style={rectangle, draw, rounded corners, minimum width=2.8cm, minimum height=0.9cm, align=center, font=\small},
-    store/.style={cylinder, draw, shape border rotate=90, aspect=0.25, minimum height=1cm, minimum width=1.6cm, align=center, font=\small},
-    arrow/.style={-{Stealth[length=2mm]}, thick}
+    block/.style={rectangle, draw, rounded corners, minimum width=2.5cm, minimum height=1.05cm, align=center, font=\small, inner sep=4pt},
+    store/.style={cylinder, draw, shape border rotate=90, aspect=0.25, minimum height=1.15cm, minimum width=1.85cm, align=center, font=\small, inner sep=2pt},
+    arrow/.style={-{Stealth[length=2mm]}, thick},
+    orch/.style={dashed, gray, thick}
   ]
-    \node[store] (csv) {CSV\\MIT-BIH};
-    \node[block, right=of csv] (trainer) {\texttt{EcgModelTrainer}};
-    \node[store, right=of trainer] (model) {PipelineModel\\su FS};
-    \node[block, below=1.8cm of csv] (sim) {\texttt{EcgPatientSimulator}};
-    \node[block, right=of sim] (kafka) {Kafka\\ecg-input-stream};
-    \node[block, right=of kafka] (predictor) {\texttt{EcgStreamingPredictor}};
-    \node[store, right=of predictor] (delta) {Delta Lake\\predictions};
-    \node[block, above=0.6cm of predictor] (runner) {\texttt{AppRunner}};
+    \coordinate (colA) at (0,0);
+    \coordinate (colB) at (4.3,0);
+    \coordinate (colC) at (8.6,0);
+    \coordinate (colD) at (12.9,0);
+
+    \node[store] (csv) at (colA) {CSV\\MIT-BIH};
+    \node[block] (trainer) at (colB) {\texttt{EcgModel}\\[-1pt]\texttt{Trainer}};
+    \node[store] (model) at (colC) {PipelineModel\\su FS};
+
+    \node[block] (sim) at ($(colA)+(0,-2.85)$) {\texttt{EcgPatient}\\[-1pt]\texttt{Simulator}};
+    \node[block] (kafka) at ($(colB)+(0,-2.85)$) {Kafka\\{\scriptsize ecg-input-stream}};
+    \node[block] (predictor) at ($(colC)+(0,-2.85)$) {\texttt{EcgStreaming}\\[-1pt]\texttt{Predictor}};
+    \node[store] (delta) at ($(colD)+(0,-2.85)$) {Delta Lake\\predictions};
+
+    \node[block] (runner) at ($(colB)+(0,-1.42)$) {\texttt{AppRunner}};
+
     \draw[arrow] (csv) -- (trainer);
     \draw[arrow] (trainer) -- (model);
     \draw[arrow] (csv) -- (sim);
@@ -98,9 +107,11 @@ La Figura~\ref{fig:architettura-logica} mostra il flusso logico dei dati; la Fig
     \draw[arrow] (kafka) -- (predictor);
     \draw[arrow] (model) -- (predictor);
     \draw[arrow] (predictor) -- (delta);
-    \draw[dashed, gray] (runner.south) -- ++(0,-0.3) -| (trainer.north);
-    \draw[dashed, gray] (runner.south) -- ++(0,-0.3) -| (predictor.north);
-    \draw[dashed, gray] (runner.south) -- ++(0,-0.3) -| (sim.north);
+
+    \draw[orch] (runner.north) -- (trainer.south);
+    \draw[orch] (runner.south) -- (kafka.north);
+    \draw[orch] (runner.south) -- (sim.north east);
+    \draw[orch] (runner.south) -- (predictor.north west);
   \end{tikzpicture}
   \caption{Flusso logico: training batch, ingestion simulata e inferenza streaming. Linee tratteggiate: orchestrazione \texttt{AppRunner}.}
   \label{fig:architettura-logica}
@@ -137,12 +148,12 @@ La colonna \texttt{probability} contiene il vettore di probabilità per classe, 
     \foreach \x in {0,3.2,6.4,9.6} {
       \draw[lifeline] (\x,-0.4) -- (\x,-5.8);
     }
-    \draw[msg] (0,-0.8) -- node[above, sloped] {train if missing} (3.2,-1.1);
-    \draw[msg] (0,-1.6) -- node[above, sloped] {start thread} (6.4,-1.9);
-    \node[font=\tiny, align=center] at (4.8,-2.6) {sleep 15s\\warmup};
-    \draw[msg] (0,-3.2) -- node[above, sloped] {main} (9.6,-3.5);
-    \draw[msg] (9.6,-4.2) -- node[above, sloped] {1000 msg} (6.4,-4.5);
-    \draw[msg] (0,-5.2) -- node[above, sloped] {join} (6.4,-5.5);
+    \draw[msg] (0,-0.95) -- node[above] {train if missing} (3.2,-0.95);
+    \draw[msg] (0,-1.85) -- node[above] {start thread} (6.4,-1.85);
+    \node[font=\tiny, align=center] at (6.4,-2.65) {sleep 15s\\warmup};
+    \draw[msg] (0,-3.35) -- node[above] {main} (9.6,-3.35);
+    \draw[msg] (9.6,-4.35) -- node[above] {1000 msg} (6.4,-4.35);
+    \draw[msg] (0,-5.35) -- node[above] {join} (6.4,-5.35);
   \end{tikzpicture}
   \caption{Sequenza di avvio orchestrata da \texttt{AppRunner}: training condizionale, predictor in thread demone, attesa, simulatore, join.}
   \label{fig:sequenza-avvio}
@@ -156,21 +167,28 @@ La Figura~\ref{fig:deployment} illustra la disposizione fisica.
 \begin{figure}[H]
   \centering
   \begin{tikzpicture}[
-    host/.style={rectangle, draw, dashed, rounded corners, minimum width=11cm, minimum height=5cm},
-    block/.style={rectangle, draw, rounded corners, minimum width=2.6cm, minimum height=0.85cm, align=center, font=\small},
-    docker/.style={rectangle, draw, fill=gray!8, rounded corners, minimum width=3.2cm, minimum height=1.6cm, align=center, font=\small},
-    arrow/.style={-{Stealth[length=2mm]}, thick}
+    block/.style={rectangle, draw, rounded corners, minimum width=2.5cm,
+                  minimum height=0.95cm, align=center, font=\small, inner sep=4pt},
+    docker/.style={block, fill=gray!8},
+    arrow/.style={-{Stealth[length=2mm]}, thick},
+    lbl/.style={font=\tiny, fill=white, inner sep=1.5pt}
   ]
-    \node[host, label={[font=\small\bfseries]above:Host di sviluppo (localhost)}] (host) {};
-    \node[block] at ([xshift=-3.2cm, yshift=0.8cm]host.center) (jvm1) {JVM Spark\\Trainer};
-    \node[block] at ([xshift=0cm, yshift=0.8cm]host.center) (jvm2) {JVM Spark\\Predictor};
-    \node[block] at ([xshift=3.2cm, yshift=0.8cm]host.center) (jvm3) {JVM Spark\\Simulator};
-    \node[docker] at ([yshift=-1.2cm]host.center) (kafka) {Docker\\Kafka KRaft\\:9092};
-    \node[block] at ([xshift=-2.5cm, yshift=-1.2cm]host.center) (fs) {FS locale\\model + delta};
-    \draw[arrow] (jvm3) -- node[above, font=\tiny] {produce} (kafka);
-    \draw[arrow] (kafka) -- node[above, font=\tiny] {consume} (jvm2);
-    \draw[arrow] (jvm1) -- (fs);
-    \draw[arrow] (jvm2) -- (fs);
+    \node[block]  (trainer)   at (-3.6, 0) {JVM Spark\\Trainer};
+    \node[block]  (predictor) at ( 0.0, 0) {JVM Spark\\Predictor};
+    \node[block]  (simulator) at ( 3.6, 0) {JVM Spark\\Simulator};
+
+    \node[block]  (fs)    at (-3.6, -2.6) {FS locale\\model + delta};
+    \node[docker] (kafka) at ( 3.6, -2.6) {Docker Kafka\\KRaft :9092};
+
+    \node[rectangle, draw, dashed, rounded corners,
+          fit={(trainer) (simulator) (fs) (kafka)},
+          inner sep=20pt,
+          label={[font=\small\bfseries]above:Host di sviluppo (localhost)}] {};
+
+    \draw[arrow] (trainer.south) -- node[left, lbl] {write} (fs.north);
+    \draw[arrow] (predictor.south west) -- node[left, lbl] {read/write} (fs.north east);
+    \draw[arrow] (simulator.south) -- node[right, lbl] {produce} (kafka.north);
+    \draw[arrow] (kafka.north west) -- node[right, lbl] {consume} (predictor.south east);
   \end{tikzpicture}
   \caption{Deployment mono-nodo: tre processi JVM Spark (\texttt{local[*]}) e un container Docker per Kafka.}
   \label{fig:deployment}
