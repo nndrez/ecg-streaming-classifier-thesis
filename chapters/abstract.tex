@@ -2,9 +2,11 @@ Il monitoraggio continuo dell'elettrocardiogramma impone di classificare ogni ba
 Molti lavori sulla classificazione automatica si limitano all'addestramento e alla valutazione offline, senza collegare ingestion, inferenza e persistenza in un'architettura eseguibile.
 
 Si propone una pipeline end-to-end per la classificazione \emph{near-real-time} di battiti ECG, con approccio ibrido batch/streaming.
-Un \texttt{RandomForestClassifier}, addestrato in batch su feature a livello di battito dal dataset MIT-BIH in formato tabulare, viene distribuito come artefatto e applicato in streaming da Apache Spark Structured Streaming su eventi Kafka pubblicati da un simulatore edge.
+Un \texttt{RandomForestClassifier} con 100 alberi e profondità massima 15, addestrato in batch su 570\,214 campioni estratti da tre database del corpus MIT-BIH in formato tabulare, viene distribuito come artefatto e applicato in streaming da Apache Spark Structured Streaming su eventi Kafka pubblicati da un simulatore edge.
 Le predizioni sono scritte su Delta Lake con checkpointing, garantendo recupero dopo failure e disaccoppiamento tra producer e consumer.
 L'implementazione in Scala è riproducibile con Docker e \texttt{sbt}.
 
-Sul test set si osservano accuratezza globale circa al 96\% e latenza end-to-end tipicamente sub-secondo, con limiti sulle classi rare e implicazioni cliniche degli errori di classificazione analizzate nel contesto delle super-classi AAMI.
-Il significato del lavoro è dimostrare che Kafka, Spark e Delta Lake possono comporsi in un sistema modulare per dati biomedici strutturati, fungendo da template per pipeline e-Health che uniscano qualità predittiva e proprietà non funzionali di un deployment distribuito.
+Sul test set hold-out (142\,608 battiti, 20\% del corpus) si ottiene un'accuratezza globale del \textbf{98,16\%} (F1-score pesato 98,01\%),
+con F1 pari a 0,991 sulla classe N, 0,950 sulla classe V e 0,737 sulla classe S.
+La latenza end-to-end misurata in regime stazionario si attesta tra 5 e~11~secondi per record, compatibile con scenari di monitoraggio \emph{near-real-time} e screening ambulatoriale ma non con applicazioni di controllo in loop chiuso.
+Il contributo è dimostrare che Kafka, Spark e Delta Lake possono comporsi in un sistema modulare per dati biomedici strutturati, fungendo da template per pipeline e-Health che uniscano qualità predittiva e proprietà non funzionali di un deployment distribuito.

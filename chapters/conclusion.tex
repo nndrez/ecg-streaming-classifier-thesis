@@ -15,17 +15,18 @@ Il prototipo si colloca tra la ricerca accademica su feature beat-level e i sist
 Gli obiettivi enunciati nel Capitolo~\ref{ch:introduzione} (Sezione~\ref{sec:obiettivi}) possono essere valutati a posteriori con un bilancio articolato su due dimensioni: qualità predittiva del classificatore e solidità operativa della pipeline.
 
 \paragraph{Qualità predittiva.}
-Sul test set hold-out (20\% del dataset, \texttt{seed = 42L}), il Random Forest ha raggiunto un'accuratezza globale del \textbf{96,4\%} (valore provvisorio, da consolidare con run definitive).
-Il risultato è coerente con la letteratura su classificatori ensemble applicati al MIT--BIH~\cite{breiman2001random,moody2001impact,dechazal2004automatic}, dove accuratezze tra 95\% e 98\% sono frequenti con feature ingegnerizzate a livello di battito.
+Sul test set hold-out (142\,608 battiti, 20\% del corpus, \texttt{seed = 42L}), il Random Forest ha raggiunto un'accuratezza globale del \textbf{98,16\%}, con F1-score pesato del 98,01\% e un tempo di training di circa 2 minuti su singolo nodo.
+Il risultato si colloca nella fascia superiore della letteratura su classificatori ensemble applicati al MIT--BIH~\cite{breiman2001random,moody2001impact,dechazal2004automatic}, dove accuratezze tra 95\% e 98\% sono frequenti con feature ingegnerizzate a livello di battito.
 Studi comparabili sullo stesso corpus tabellare~\cite{sakib2021edge} riportano performance simili sulle classi N e V, con maggiore variabilità su S, F e Q.
 
-L'analisi per super-classe AAMI (Tabella~\ref{tab:metriche-classe}, Figura~\ref{fig:f1-per-classe}) offre però una lettura più equilibrata dell'accuratezza globale.
-Le classi N (F1 $\approx$ 0,986) e V (F1 $\approx$ 0,904) si collocano nell'intervallo atteso; le classi S (F1 $\approx$ 0,745), F (F1 $\approx$ 0,625) e Q (F1 $\approx$ 0,700) restano sensibilmente inferiori, in linea con lo sbilanciamento del dataset ($\approx$89,5\% di battiti normali) e con la difficoltà nota in letteratura di distinguere ectopie supraventricolari da ritmo sinusale.
-La recall del 89,1\% sulla classe V implica che circa una ectopia ventricolare su dieci non viene rilevata: in un contesto di monitoraggio post-infarto questo limite ha rilevanza clinica non trascurabile, anche se il prototipo non sostituisce il giudizio del clinico bensì funge da supporto decisionale.
+L'analisi per super-classe AAMI (Tabella~\ref{tab:metriche-classe}, Figura~\ref{fig:f1-per-classe}) offre una lettura più articolata dell'accuratezza globale.
+Le classi N (F1 = 0,991) e V (F1 = 0,950) si collocano nella fascia superiore dell'intervallo atteso; la classe S (F1 = 0,737) raggiunge valori medi; le classi F (F1 = 0,501) e Q (F1 = 0,194) riflettono la difficoltà di un classificatore non bilanciato su supporti estremamente ridotti (283 e 28 campioni nel test set).
+La recall del 92,9\% sulla classe V implica che circa una ectopia ventricolare su quattordici non viene rilevata: in un contesto di monitoraggio post-infarto questo limite ha rilevanza clinica non trascurabile, anche se il prototipo non sostituisce il giudizio del clinico bensì funge da supporto decisionale.
 
 \paragraph{Proprietà non funzionali.}
-La decomposizione della latenza end-to-end (Tabella~\ref{tab:latenza}) indica un tempo totale stimato tra 200 e 850~ms, compatibile con scenari \emph{near-real-time} di screening e prioritizzazione, ma non con applicazioni che richiedono latenza sub-100~ms.
-Con rate di ingresso pari a 1 msg/s il predictor processa ogni micro-batch senza backlog; la stima provvisoria di throughput (200--400 record/s su singolo nodo \texttt{local[*]}) suggerisce margini sufficienti per decine di pazienti monitorati simultaneamente, ma non per migliaia senza scaling orizzontale.
+La latenza end-to-end misurata in regime stazionario (Tabella~\ref{tab:latenza}) si attesta tra 5 e 11~s per record, con una media per micro-batch di circa 8,5~s: un valore superiore alla soglia sub-secondo indicata come target iniziale, ma compatibile con scenari \emph{near-real-time} di screening e monitoraggio ambulatoriale non critico.
+Il collo di bottiglia è la fase di processing del micro-batch Spark (scheduling, inferenza RF, scrittura Delta), che su singolo nodo in modalità \texttt{local[*]} richiede mediamente 6,5~s; in produzione, rimuovere le operazioni di debug dal \texttt{foreachBatch} e adottare un trigger fisso ridurrebbe sensibilmente questa componente.
+Con rate di ingresso pari a 1~msg/s il predictor elabora ogni micro-batch senza accumulo di backlog; il throughput massimo sostenibile non è stato misurato direttamente, ma l'architettura Kafka--Spark--Delta supporta scaling orizzontale per carichi multi-paziente.
 Il checkpoint Spark e la scrittura transazionale su Delta Lake garantiscono recovery dopo failure del driver e semantica exactly-once a livello di micro-batch, requisito soddisfacente per un prototipo accademico.
 
 \paragraph{Commento critico sulle scelte.}
@@ -56,16 +57,16 @@ Lo schema JSON è inferito dal layout del CSV Kaggle anziché definito tramite A
 I path e i parametri sono hardcoded in \texttt{Config.scala} senza esternalizzazione; mancano test automatici, metriche operative (Kafka lag, latenza micro-batch, error rate) e sicurezza di base (TLS, autenticazione).
 Questi gap sono coerenti con la natura di prototipo accademico e costituiscono prerequisiti operativi per un deployment in produzione, non per la dimostrazione dell'integrazione.
 
-\paragraph{Metriche sperimentali definitive.}
-I valori numerici nel Capitolo~\ref{ch:analisi-dei-risultati-e-test} restano contrassegnati come provvisori e vanno consolidati con run definitive di \texttt{EcgModelTrainer} e \texttt{EcgStreamingPredictor}.
-La struttura di valutazione (protocollo, metriche AAMI, decomposizione latenza, discussione impatto clinico) è pronta; manca la campagna sperimentale conclusiva che ne popoli tabelle e grafici.
+\paragraph{Completamento sperimentale.}
+La campagna sperimentale è stata eseguita su un'unica run definitiva (\texttt{20260616\_201739}), che ha prodotto tutti i valori numerici riportati nel Capitolo~\ref{ch:analisi-dei-risultati-e-test}.
+Un approfondimento futuro potrebbe includere run ripetute per stimare la varianza delle metriche, validazione incrociata per soggetto e confronto con modelli alternativi sullo stesso split.
 
 \section{Possibili ulteriori sviluppi}\label{sec:ulteriori-sviluppi}
 
 Le estensioni più urgenti, ordinate per impatto e fattibilità, sono le seguenti.
 
-\paragraph{Consolidamento sperimentale e qualità del modello.}
-Completare le run definitive, introdurre test automatici su parsing e consistenza schema, adottare split per soggetto e class weighting per le classi V e S.
+\paragraph{Miglioramento della qualità del modello.}
+Introdurre test automatici su parsing e consistenza schema, adottare split per soggetto e class weighting per le classi V e S.
 Confrontare modelli alternativi (GBT, SVM) sullo stesso split permetterebbe di quantificare se il Random Forest è effettivamente la scelta ottimale o solo la più pragmatica.
 
 \paragraph{Contratti dati e configurazione.}

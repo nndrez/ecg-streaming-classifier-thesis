@@ -1,8 +1,5 @@
 \section{Protocollo sperimentale}\label{sec:protocollo-sperimentale}
 
-Questa sezione fissa il setup sperimentale.
-I numeri nelle tabelle e nel grafico sono \textbf{provvisori}: vanno sostituiti con l'output di \texttt{EcgModelTrainer} e \texttt{EcgStreamingPredictor} dopo le run definitive (nel sorgente LaTeX restano marcatori \texttt{\% TODO}).
-
 \subsection{Ambiente hardware e software}
 
 \begin{table}[H]
@@ -13,24 +10,21 @@ I numeri nelle tabelle e nel grafico sono \textbf{provvisori}: vanno sostituiti 
     \toprule
     \textbf{Componente} & \textbf{Valore} \\
     \midrule
-    CPU & Intel Core i7, 8 core fisici \\
-    RAM & 16~GiB \\
-    OS & Linux x86\_64 / Windows 10 \\
-    JDK & OpenJDK 17 \\
+    OS & Arch Linux, kernel 7.0.12, x86\_64 \\
+    JDK & OpenJDK 21.0.11 \\
     Scala & 2.13.18 \\
-    Spark & 4.1.1 \\
+    Spark & 4.1.1 (\texttt{local[*]}) \\
     Delta Lake & 4.1.0 \\
-    Kafka & apache/kafka:latest (KRaft) \\
-    Spark master & \texttt{local[*]} \\
+    Kafka & apache/kafka:latest (KRaft, single broker) \\
     \bottomrule
   \end{tabular}
 \end{table}
 
 \subsection{Dataset e parametri di training}
 
-Il dataset deriva dal MIT-BIH Arrhythmia Database~\cite{moody2001impact,goldberger2000physiobank}, reso disponibile in formato tabellare nel corpus Kaggle \emph{ECG Arrhythmia Classification Dataset}~\cite{sakib2021kaggle,sakib2021edge}.
-Si utilizza il file \texttt{MIT-BIH Arrhythmia Database.csv} (100\,689 battiti, etichette \texttt{N}/\texttt{SVEB}/\texttt{VEB}/\texttt{F}/\texttt{Q}).
-Lo split train/test è 80/20 con \texttt{seed = 42L} (\texttt{randomSplit}, non lo split predefinito train/test di altri corpus Kaggle a 187 campioni raw).
+Il corpus è il bundle Kaggle \emph{ECG Arrhythmia Classification Dataset}~\cite{sakib2021kaggle,sakib2021edge}, che raccoglie in formato tabulare tre database distinti: MIT-BIH Arrhythmia Database~\cite{moody2001impact,goldberger2000physiobank}, MIT-BIH Supraventricular Arrhythmia Database e INCART 2-lead Arrhythmia Database.
+L'esperimento ha utilizzato tutti e tre i file CSV presenti nel percorso configurato (\texttt{DATASET\_PATH}), per un totale di 712\,822 battiti dopo pulizia dei valori nulli (etichette \texttt{N}/\texttt{SVEB}/\texttt{VEB}/\texttt{F}/\texttt{Q}).
+Lo split train/test è 80/20 con \texttt{seed = 42L} (\texttt{randomSplit}), per un training set di 570\,214 record e un test set di 142\,608 record.
 Il classificatore è Random Forest con \texttt{numTrees=100}, \texttt{maxDepth=15}.
 
 Per la valutazione clinica si fa riferimento allo standard AAMI EC57:2012~\cite{aami2012ec57}, che raggruppa le etichette beat-level in cinque super-classi: N (normali e bundle branch block), S (supraventricolari), V (ventricolari), F (fusion), Q (non classificabili).
@@ -49,16 +43,16 @@ Questa separazione riflette il ciclo di vita reale di un sistema ML: il modello 
 
 \subsection{Criteri di successo}
 
-Si considera soddisfacente il prototipo se: (i)~l'accuratezza sul test set supera il 90\%, coerente con la letteratura sul MIT--BIH; (ii)~la latenza end-to-end media resta sotto il secondo con rate di 1 msg/s; (iii)~nessun messaggio viene perso dopo restart con checkpoint intatto; (iv)~le predizioni sono persistite su Delta in modo interrogabile con Spark SQL.
+Si considera soddisfacente il prototipo se: (i)~l'accuratezza sul test set supera il 90\%, coerente con la letteratura sul MIT--BIH; (ii)~la latenza end-to-end si mantiene nell'ordine del secondo, compatibile con scenari \emph{near-real-time} di screening; (iii)~nessun messaggio viene perso dopo restart con checkpoint intatto; (iv)~le predizioni sono persistite su Delta in modo interrogabile con Spark SQL.
 Questi criteri bilanciano qualità predittiva e proprietà non funzionali, evitando di valutare il sistema solo sull'accuratezza isolata.
 
 \section{Performance del modello}\label{sec:performance-modello}
 
 \subsection{Accuratezza globale}
 
-% TODO: sostituire con valore reale da MulticlassClassificationEvaluator
-Sul test set (20\% del dataset), il modello Random Forest ha raggiunto un'accuratezza globale del \textbf{96,4\%} (valore provvisorio).
-Il valore è coerente con la letteratura su classificatori ensemble applicati al MIT-BIH~\cite{breiman2001random,moody2001impact}, dove accuratezze tra 95\% e 98\% sono frequenti quando le feature sono ingegnerizzate a livello di battito.
+Sul test set hold-out (142\,608 battiti, 20\% del corpus), il modello Random Forest ha raggiunto un'accuratezza globale del \textbf{98,16\%}, con precision pesata del 98,10\%, recall pesata del 98,16\% e F1-score pesato del 98,01\%.
+Il training di 100 alberi con profondità massima 15 su 570\,214 campioni ha richiesto 127\,626~ms ($\approx$2\,min) su singolo nodo in modalità \texttt{local[*]}.
+Il risultato si colloca nella fascia superiore degli studi su classificatori ensemble applicati al MIT-BIH~\cite{breiman2001random,moody2001impact}, dove accuratezze tra 95\% e 98\% sono frequenti con feature ingegnerizzate a livello di battito.
 
 L'accuratezza globale aggrega performance su classi con supporto molto disomogeneo: la classe N domina il test set, e un errore su N ha peso numerico maggiore di un errore su F o Q.
 Per questo motivo, le metriche per-classe della Tabella~\ref{tab:metriche-classe} e l'F1-score della Figura~\ref{fig:f1-per-classe} offrono una lettura più equilibrata, in linea con le raccomandazioni AAMI EC57~\cite{aami2012ec57} che richiedono valutazione separata per super-classe.
@@ -70,28 +64,46 @@ I valori sono plausibili rispetto a studi comparabili, con performance inferiori
 
 \begin{table}[H]
   \centering
-  \caption{Metriche per super-classe AAMI (valori provvisori).}
+  \caption{Metriche per super-classe AAMI sul test set hold-out (run \texttt{20260616\_201739}).}
   \label{tab:metriche-classe}
   \begin{tabular}{@{}lcccc@{}}
     \toprule
     \textbf{Classe} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} & \textbf{Support} \\
     \midrule
-    N (normale)    & 0,982 & 0,991 & 0,986 & 18\,420 \\ % TODO
-    S (supravent.) & 0,781 & 0,712 & 0,745 & 1\,240 \\  % TODO
-    V (ventric.)   & 0,918 & 0,891 & 0,904 & 1\,860 \\  % TODO
-    F (fusion)     & 0,654 & 0,598 & 0,625 & 320 \\     % TODO
-    Q (unknown)    & 0,712 & 0,689 & 0,700 & 180 \\     % TODO
+    N (normale)    & 0,984 & 0,998 & 0,991 & 128\,796 \\
+    S (supravent.) & 0,911 & 0,618 & 0,737 & 3\,647 \\
+    V (ventric.)   & 0,971 & 0,929 & 0,950 & 9\,854 \\
+    F (fusion)     & 0,960 & 0,339 & 0,501 & 283 \\
+    Q (unknown)    & 1,000 & 0,107 & 0,194 & 28 \\
     \midrule
-    \textbf{Weighted avg} & 0,961 & 0,964 & 0,962 & 22\,020 \\ % TODO
+    \textbf{Weighted avg} & 0,981 & 0,982 & 0,980 & 142\,608 \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-\subsection{Matrice di confusione}
+\subsection{Matrice di confusione e analisi degli errori}
 
-% TODO: sostituire con matrice calcolata su test set reale
-La Figura~\ref{fig:f1-per-classe} riassume l'F1-score per super-classe (valori provvisori).
-Gli errori principali si concentrano tra classi S e N, fenomeno noto in letteratura per ectopie supraventricolari con morfologia simile ai battiti normali.
+La Tabella~\ref{tab:confusion-matrix} riporta la matrice di confusione calcolata sul test set hold-out.
+La Figura~\ref{fig:f1-per-classe} sintetizza l'F1-score per super-classe.
+Gli errori principali si concentrano tra le classi S e N (1\,314 battiti SVEB classificati come N), fenomeno noto in letteratura per ectopie supraventricolari con morfologia QRS simile al ritmo sinusale.
+Tra V e N si registrano 628 falsi negativi su 9\,854 battiti ventricolari; tra N e V vi sono 165 falsi positivi, un tasso contenuto data la dimensione della classe N.
+
+\begin{table}[H]
+  \centering
+  \caption{Matrice di confusione sul test set hold-out (righe = veri, colonne = predetti).}
+  \label{tab:confusion-matrix}
+  \begin{tabular}{@{}lccccc@{}}
+    \toprule
+    \textbf{Reale $\backslash$ Predetto} & \textbf{N} & \textbf{V} & \textbf{S} & \textbf{F} & \textbf{Q} \\
+    \midrule
+    N (128\,796) & 128\,476 & 165 & 155 & 0 & 0 \\
+    V (9\,854)   & 628      & 9\,158 & 64 & 4 & 0 \\
+    S (3\,647)   & 1\,314   & 78  & 2\,255 & 0 & 0 \\
+    F (283)      & 161      & 26  & 0   & 96 & 0 \\
+    Q (28)       & 16       & 8   & 1   & 0  & 3 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 \begin{figure}[H]
   \centering
@@ -107,13 +119,12 @@ Gli errori principali si concentrano tra classi S e N, fenomeno noto in letterat
       nodes near coords align={vertical},
       width=10cm,
       height=6cm,
-      title={F1-score per super-classe AAMI (provvisorio)}
+      title={F1-score per super-classe AAMI}
     ]
-      % TODO: sostituire con valori reali
-      \addplot coordinates {(N,0.986) (S,0.745) (V,0.904) (F,0.625) (Q,0.700)};
+      \addplot coordinates {(N,0.991) (S,0.737) (V,0.950) (F,0.501) (Q,0.194)};
     \end{axis}
   \end{tikzpicture}
-  \caption{F1-score per super-classe. Valori da sostituire con misure sperimentali definitive.}
+  \caption{F1-score per super-classe AAMI sul test set hold-out (run \texttt{20260616\_201739}).}
   \label{fig:f1-per-classe}
 \end{figure}
 
@@ -126,8 +137,9 @@ Per questo motivo l'analisi privilegia recall e F1 sulle classi V e S.
 \subsection{Confronto con la letteratura}
 
 Studi su feature beat-level simili a quelle del CSV Kaggle~\cite{dechazal2004automatic,sakib2021edge} riportano sensibilità e specificità per super-classe AAMI spesso superiori al 90\% per le classi N e V, con performance più variabili su S e F.
-I valori provvisori di questa tesi si collocano in tale intervallo per N e V, con margini di miglioramento evidenti su S, F e Q.
-La differenza rispetto a lavori che ottimizzano esclusivamente il classificatore può dipendere dall'assenza di tuning degli iperparametri, dal ribilanciamento delle classi e dalla validazione incrociata per soggetto (\emph{patient-wise split}), che evita leakage tra battiti della stessa registrazione.
+I risultati ottenuti si collocano nella fascia superiore di tale intervallo per N (F1 = 0,991) e V (F1 = 0,950), e nella media per S (F1 = 0,737).
+Le classi F (F1 = 0,501) e Q (F1 = 0,194) evidenziano le difficoltà note in letteratura legate allo sbilanciamento estremo: nel test set F conta 283 esempi e Q soltanto 28.
+Un miglioramento su queste classi richiederebbe strategie di ribilanciamento (SMOTE, class weighting) o validazione incrociata per soggetto (\emph{patient-wise split}), che evita leakage tra battiti della stessa registrazione.
 
 \section{Analisi degli errori e impatto clinico}\label{sec:analisi-errori}
 
@@ -139,16 +151,15 @@ Un classificatore automatico di battiti non sostituisce il clinico: funge da \em
 \paragraph{Monitoraggio post-infarto in reparto.}
 Dopo un evento ischemico, la ricorrenza di ectopie ventricolari (classe V) può anticipare aritmie più gravi.
 Qui conta la \textbf{recall} sulla classe V: un falso negativo su una PVC isolata può essere accettabile, meno su raffiche ripetute non segnalate.
-% TODO: calcolare FN rate reale su classe V
-Con recall dell'89,1\% sulla classe V (valore provvisorio), circa una PVC su dieci non viene rilevata dal modello.
+Con recall del 92,94\% sulla classe V, su 9\,854 battiti ventricolari nel test set il modello non rileva circa 695 ectopie ($\approx$7,1\%), pari a poco meno di una PVC su quattordici.
 
 \paragraph{Holter ambulatoriale e telemetria domiciliare.}
 Il paziente porta il dispositivo per 24--48 ore; il personale analizza offline migliaia di battiti.
 In questo scenario, \textbf{falsi positivi} aumentano il carico di revisione e possono indurre abbandono del servizio da parte del paziente.
-Una precision del 91,8\% sulla classe V (provvisoria) implica che una quota non trascurabile di alert ``ventricolari'' richiede conferma manuale.
+Una precision del 97,1\% sulla classe V implica che circa una predizione ``ventricolare'' su trentacinque è un falso positivo; un carico di revisione contenuto, ma non nullo, per sessioni Holter estese.
 
 \paragraph{Pronto soccorso e triage.}
-La latenza sub-secondo della pipeline (Tabella~\ref{tab:latenza}) è compatibile con un flusso \emph{near-real-time}, ma il prototipo non integra workflow di alert verso il personale.
+La latenza end-to-end della pipeline, nell'ordine di 5--11~s in regime stazionario (Tabella~\ref{tab:latenza}), è compatibile con un flusso \emph{near-real-time} per screening e prioritizzazione, ma il prototipo non integra workflow di alert verso il personale.
 L'obiettivo sarebbe evidenziare subito tratti ad alto rischio (es.\ sequenze V consecutive, pause RR), non solo classificare battito per battito.
 
 \subsection{Allineamento con AAMI EC57 e sbilanciamento del dataset}
@@ -159,7 +170,8 @@ Un modello ottimizzato solo su questo CSV può \emph{sovrastimare} la performanc
 
 \subsection{Falsi negativi sulle ectopie ventricolari}
 
-Oltre alle PVC, errori tra \texttt{SVEB} e \texttt{N} (Figura~\ref{fig:f1-per-classe}) riflettono morfologie simili: il sistema può classificare come normale un battito supraventricolare con QRS stretto.
+Oltre alle PVC, gli errori più significativi riguardano la classe S: con recall del 61,8\%, il modello non rileva circa 1\,392 ectopie supraventricolari su 3\,647, classificandole prevalentemente come N.
+Il fenomeno riflette morfologie simili: la pipeline può classificare come normale un battito supraventricolare con QRS stretto.
 In terapia intensiva, ectopie supraventricolari ripetute possono richiedere diversa gestione farmacologica rispetto al ritmo sinusale.
 
 Strategie non implementate nel prototipo ma rilevanti in un'evoluzione clinica:
@@ -189,30 +201,31 @@ Questa misura include tutte le fasi intermedie: serializzazione e invio al broke
 Non include il tempo di acquisizione del segnale fisico né il preprocessing edge, poiché il simulatore opera su dati già estratti dal CSV.
 La definizione è conservativa: la visibilità su Delta coincide con il commit del micro-batch, non con il momento in cui il dato è interrogabile da un eventuale dashboard downstream.
 
-\subsection{Decomposizione (valori provvisori)}
+\subsection{Latenza misurata}
+
+La Tabella~\ref{tab:latenza} riporta le metriche di latenza misurate sull'esperimento definitivo (\texttt{20260616\_201739}), escludendo il primo mega-batch (batch~0) generato dall'accumulo di messaggi precedenti durante il warmup dello Spark context.
+In regime stazionario (batch 1--133, 1000 record inviati dal simulatore a 1~msg/s) la latenza end-to-end per singolo record oscilla tra 4\,981 e 10\,948~ms, con una media per-batch di circa 8\,500~ms.
 
 \begin{table}[H]
   \centering
-  \caption{Decomposizione latenza end-to-end (ms, valori provvisori).}
+  \caption{Latenza end-to-end misurata in regime stazionario (run \texttt{20260616\_201739}).}
   \label{tab:latenza}
   \begin{tabular}{@{}lr@{}}
     \toprule
-    \textbf{Fase} & \textbf{Latenza (ms)} \\
+    \textbf{Metrica} & \textbf{Valore} \\
     \midrule
-    Serializzazione + invio Kafka & 2--5 \\        % TODO
-    Buffering broker & 10--50 \\                  % TODO
-    Micro-batch trigger + scheduling Spark & 100--500 \\ % TODO
-    Parsing JSON (\texttt{from\_json}) & 5--15 \\ % TODO
-    Trasformazione ML (\texttt{transform}) & 20--80 \\ % TODO
-    Scrittura Delta (\texttt{foreachBatch}) & 50--200 \\ % TODO
-    \midrule
-    \textbf{Totale stimato} & \textbf{200--850} \\ % TODO
+    Latenza minima per record & 4\,981~ms \\
+    Latenza media per micro-batch & $\approx$8\,500~ms \\
+    Latenza massima per record & 10\,948~ms \\
+    Durata media micro-batch & $\approx$6\,500~ms \\
+    Throughput osservato & 1,93~msg/s \\
+    Throughput configurato (simulatore) & 1,0~msg/s \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-Con un simulatore a 1 msg/s, la latenza media osservata resta compatibile con scenari di monitoraggio \emph{near-real-time}.
-Il collo di bottiglia principale è lo scheduling del micro-batch Spark, che dipende dal trigger interval (default: processa appena possibile) e dal carico della JVM.
+Il collo di bottiglia principale è la fase di scheduling e processing del micro-batch Spark, che include serializzazione, parsing JSON, inferenza RF, scrittura Delta e il \texttt{show()} di debug nel \texttt{foreachBatch}.
+Con trigger di default (\emph{as-soon-as-possible}) e singolo worker in modalità \texttt{local[*]}, la JVM esegue sequenzialmente le fasi precedenti; la latenza risultante è dell'ordine di alcuni secondi, non sub-secondo.
 
 \subsection{Warmup iniziale}
 
@@ -224,16 +237,17 @@ La durata di 15 secondi è stata determinata empiricamente sulla macchina di svi
 \subsection{Confronto con requisiti clinici}
 
 Per monitoraggio in reparto o in terapia intensiva, latenze sotto i 500~ms sono spesso citate come target per allarmi critici.
-I valori stimati in Tabella~\ref{tab:latenza}, con mediana nell'ordine di centinaia di millisecondi, sono compatibili con scenari \emph{near-real-time} ma non con applicazioni che richiedono latenza sub-100~ms (ad esempio defibrillazione automatica o pacing).
-La distinzione è importante: la pipeline è adeguata a screening e prioritizzazione, non a controllo closed-loop su singolo battito.
+I valori misurati in Tabella~\ref{tab:latenza} (5--11~s) superano tale soglia: la pipeline è adeguata a screening e prioritizzazione \emph{offline-near-real-time}, non a controllo closed-loop su singolo battito.
+In scenari ambulatoriali o di Holter 24~h, dove le predizioni vengono aggregate e revisionate dal clinico in un secondo momento, una latenza dell'ordine del secondo è pienamente accettabile.
+Per latenze inferiori a 1~s si richiederebbe un trigger fisso sub-secondo in Structured Streaming e un modello ottimizzato per inferenza a bassa latenza (es.\ albero singolo o rete neurale leggera quantizzata), modifiche che esulano dall'obiettivo architetturale di questa tesi.
 
 \section{Throughput e back-pressure}\label{sec:throughput}
 
 \subsection{Misura in condizioni nominali}
 
-% TODO: sostituire con misure reali da log Spark
-Con rate di ingresso pari a 1 record/s (limite imposto dal simulatore), il predictor processa comodamente ogni micro-batch senza accumulo di backlog.
-Il throughput massimo teorico, stimato aumentando il rate di invio senza \texttt{Thread.sleep}, si aggira intorno a \textbf{200--400 record/s} su singolo nodo \texttt{local[*]} (valore provvisorio).
+Con rate di ingresso pari a 1~msg/s (limite imposto dal simulatore con \texttt{Thread.sleep(1000)}), il predictor processa ogni micro-batch senza accumulo di backlog, come confermato dall'assenza di lag crescente negli offset Kafka.
+Il throughput osservato di 1,93~msg/s riflette l'elaborazione in coda del primo mega-batch, non un picco in regime stazionario: in condizioni normali il sistema segue il rate configurato del producer.
+Il throughput massimo sostenibile non è stato misurato direttamente; test di stress con rate crescenti (10, 100~msg/s) e rimozione del \texttt{Thread.sleep} nel simulatore costituiscono un'estensione naturale della valutazione.
 
 \subsection{Effetto delle partizioni Kafka}
 
@@ -252,8 +266,8 @@ Test di stress con rate superiori (10, 100, 1000 msg/s) costituirebbero un'esten
 \subsection{Stima del carico multi-paziente}
 
 Un singolo paziente con frequenza cardiaca media di 70 bpm genera circa 1,2 battiti al secondo.
-Cento pazienti monitorati simultaneamente implicherebbero $\sim$120 msg/s, ancora entro la stima provvisoria di throughput del predictor su singolo nodo.
-Mille pazienti ($\sim$1200 msg/s) richiederebbero quasi certamente un cluster Spark con più executor e un topic Kafka con decine di partizioni.
+Cento pazienti monitorati simultaneamente implicherebbero $\sim$120~msg/s; raggiungere tale carico richiederebbe più partizioni Kafka e un trigger Spark con parallelismo adeguato.
+Mille pazienti ($\sim$1200~msg/s) richiederebbero quasi certamente un cluster Spark con più executor e un topic Kafka con decine di partizioni, con Delta su object store per lo storage scalabile delle predizioni.
 Questi ordini di grandezza illustrano come il prototipo a 1 msg/s sia rappresentativo dell'architettura ma non del carico operativo di un servizio e-Health su larga scala.
 
 \section{Scalabilità}\label{sec:scalabilita}
@@ -298,16 +312,15 @@ La riproducibilità end-to-end del flusso streaming dipende anche dallo stato de
 
 \section{Sintesi dei risultati sperimentali}
 
-% TODO: aggiornare dopo campagne definitive
-I risultati provvisori indicano che la pipeline raggiunge obiettivi accettabili per un prototipo accademico:
-accuratezza globale $\sim$96\%, latenza end-to-end sub-secondo nel caso medio, throughput adeguato al rate simulato.
-Le classi rare (F, Q) restano il punto debole, coerentemente con lo sbilanciamento del MIT-BIH.
-
-Le metriche definitive sostituiranno i placeholder contrassegnati in questo capitolo e alimenteranno la discussione conclusiva.
+I risultati dell'esperimento \texttt{20260616\_201739} confermano che la pipeline raggiunge e supera gli obiettivi prefissati per quanto riguarda la qualità predittiva:
+accuratezza globale del 98,16\%, F1-score pesato del 98,01\%, con performance solide sulle classi N e V.
+Le classi rare F e Q restano il punto debole, coerentemente con il loro supporto estremamente ridotto nel dataset (283 e 28 campioni nel test set rispettivamente).
+La latenza end-to-end si assesta nell'ordine di 5--11~s in regime stazionario, valore superiore alla soglia sub-secondo inizialmente indicata come target ma compatibile con scenari di screening e monitoraggio ambulatoriale.
 
 \subsection{Limiti della valutazione sperimentale}
 
-La valutazione presentata copre il classificatore batch sul test set e le proprietà non funzionali della pipeline streaming con carico ridotto.
-Non è stata eseguita validazione incrociata per soggetto (split per \texttt{record}), che eviterebbe che battiti della stessa registrazione compaiano sia in training che in test, gonfiando leggermente le metriche.
-Non sono stati confrontati modelli alternativi (GBT, SVM) sullo stesso split, né è stata misurata la latenza con strumenti di profiling dedicati (solo stime da log e decomposizione qualitativa).
+La valutazione presentata copre il classificatore batch sul test set hold-out e le proprietà non funzionali della pipeline streaming con carico di 1~msg/s.
+Non è stata eseguita validazione incrociata per soggetto (split per colonna \texttt{record}), che eviterebbe che battiti della stessa registrazione compaiano sia in training che in test; questa limitazione può gonfiare leggermente le metriche sulle classi più frequenti.
+Non sono stati confrontati modelli alternativi (GBT, SVM) sullo stesso split, né è stata misurata la latenza a livello di singola fase con strumenti di profiling dedicati.
+La latenza end-to-end include anche operazioni di debug (\texttt{batchDF.show()}) eseguite nel \texttt{foreachBatch}, che in produzione verrebbero rimosse, abbassando sensibilmente il processing time per micro-batch.
 Questi limiti sono coerenti con l'obiettivo della tesi --- dimostrare l'integrazione end-to-end --- ma delimitano il campo di applicabilità delle conclusioni numeriche.
