@@ -21,21 +21,27 @@ Tutti i parametri operativi risiedono in \texttt{utils.Config}:
 \begin{lstlisting}[language=Scala,caption={Parametri centralizzati in \texttt{Config.scala}.},label={lst:config}]
 object Config {
   val KAFKA_BOOTSTRAP_SERVERS = "localhost:9092"
-  val KAFKA_TOPIC = "ecg-input-stream"
-  val SPARK_MASTER = "local[*]"
+  val KAFKA_TOPIC             = "ecg-input-stream"
+  val SPARK_MASTER            = "local[*]"
 
-  val DATASET_PATH = "/home/andrea/data/ecg/*.csv"
+  val DATASET_PATH: String =
+    sys.env.getOrElse("ECG_DATASET_PATH", "/data/ecg/*.csv")
   val ML_MODEL_PATH = "ml-model/ecg-pipeline-model"
 
-  val DELTA_PREDICTIONS_PATH = "spark-warehouse/ecg_predictions"
+  val DELTA_PREDICTIONS_PATH    = "spark-warehouse/ecg_predictions"
   val STREAMING_CHECKPOINT_PATH =
     "spark-warehouse/checkpoints/ecg_predictions"
+
+  val RF_NUM_TREES  = 100
+  val RF_MAX_DEPTH  = 15
+
+  val SIMULATOR_RECORD_LIMIT = 1000
+  val SIMULATOR_RATE_MS      = 1000
 }
 \end{lstlisting}
 
-La configurazione hardcoded è un limite riconosciuto del prototipo.
-In un'evoluzione produttiva, i path e gli endpoint andrebbero esternalizzati tramite Typesafe Config (HOCON), variabili d'ambiente o un servizio di configurazione centralizzato.
-Il path del dataset punta a un percorso assoluto Linux (\texttt{/home/andrea/data/ecg/*.csv}): su Windows o macOS va adattato manualmente prima dell'esecuzione.
+Il path del dataset è esternalizzato tramite la variabile d'ambiente \texttt{ECG\_DATASET\_PATH} (con fallback a \texttt{/data/ecg/*.csv}): ogni operatore può sovrascrivere il percorso senza modificare il sorgente.
+In un'evoluzione produttiva, gli endpoint Kafka e i parametri del modello andrebbero analogamente gestiti tramite Typesafe Config (HOCON) o un servizio di configurazione centralizzato.
 
 La struttura piatta del repository riflette la dimensione del progetto: quattro moduli funzionali e un file di configurazione, senza layer di astrazione intermedie (repository pattern, service layer, dependency injection).
 Per un prototipo accademico questa scelta è appropriata: ogni file corrisponde a un componente architetturale identificabile nel Capitolo~\ref{ch:progettazione-e-architettura-del-sistema}, e il lettore può navigare dal diagramma logico al codice senza attraversare gerarchie di package profonde.
@@ -382,19 +388,21 @@ for ((jsonPayload, index) <- jsonRecords.zipWithIndex) {
 \texttt{AppRunner} implementa la sequenza di avvio descritta nella Sezione~\ref{sec:app-runner}.
 Il frammento saliente riguarda il thread demone del predictor:
 
-\begin{lstlisting}[language=Scala,caption={Avvio predictor in thread demone.},label={lst:app-runner-thread}]
+\begin{lstlisting}[language=Scala,caption={Avvio predictor in thread demone con shutdown controllato.},label={lst:app-runner-thread}]
 val predictorThread = new Thread(() => {
-  EcgStreamingPredictor.main(Array.empty)
+  EcgStreamingPredictor.run(stopSpark = false)
 })
 predictorThread.setDaemon(true)
 predictorThread.start()
 Thread.sleep(15000)
-EcgPatientSimulator.main(Array.empty)
-predictorThread.join()
+EcgPatientSimulator.run(stopSpark = false)
+Thread.sleep(Config.STREAMING_GRACE_PERIOD_MS)
+EcgStreamingPredictor.stop()
+predictorThread.join(60000)
 \end{lstlisting}
 
-\texttt{setDaemon(true)} fa sì che la JVM termini quando il main thread completa, anche se il predictor è ancora in \texttt{awaitAnyTermination}.
-In assenza di \texttt{join()}, il programma potrebbe chiudersi prematuramente.
+\texttt{setDaemon(true)} fa sì che la JVM termini quando il main thread completa, ma il successivo \texttt{join(60000)} assicura che il predictor abbia il tempo di scrivere gli ultimi micro-batch prima che la sessione venga chiusa.
+Il periodo di grazia (\texttt{STREAMING\_GRACE\_PERIOD\_MS = 30~s}) intercorre tra la fine del simulatore e la chiamata a \texttt{stop()}: garantisce che i messaggi già presenti nel buffer Kafka vengano elaborati e persistiti su Delta prima dello shutdown.
 L'attesa di 15 secondi prima del simulatore è una euristica fragile: un health-check esplicito sarebbe preferibile.
 
 \subsection{Banner di avvio}

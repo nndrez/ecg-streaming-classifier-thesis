@@ -337,11 +337,13 @@ Checkpoint + append idempotente su Delta garantisce exactly-once a livello di mi
 \texttt{AppRunner} coordina l'avvio in sequenza logica:
 
 \begin{enumerate}
-  \item Verifica esistenza del modello in \texttt{ML\_MODEL\_PATH}; se assente, invoca \texttt{EcgModelTrainer.main}.
+  \item Verifica esistenza del modello in \texttt{ML\_MODEL\_PATH}; se assente, invoca \texttt{EcgModelTrainer.run}.
+  \item Verifica che il topic Kafka esista e lo crea se necessario (\texttt{KafkaUtils.ensureTopicExists}).
   \item Avvia \texttt{EcgStreamingPredictor} in un thread demone (\texttt{setDaemon(true)}).
   \item Attende 15 secondi (\texttt{Thread.sleep(15000)}) per il warmup di Spark Streaming.
   \item Avvia \texttt{EcgPatientSimulator}.
-  \item Attende la terminazione del thread predictor (\texttt{predictorThread.join()}).
+  \item Attende un periodo di grazia (\texttt{STREAMING\_GRACE\_PERIOD\_MS}, default 30~s) per lo svuotamento dei micro-batch residui.
+  \item Ferma la query streaming, attende la terminazione del thread predictor e chiude la \texttt{SparkSession}.
 \end{enumerate}
 
 L'attesa di 15 secondi è un'euristica che evita che i primi messaggi arrivino prima che la query streaming sia attiva; in produzione andrebbe sostituita da health-check (\texttt{isActive}, connettività Kafka, readiness del consumer group).
