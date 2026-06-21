@@ -50,7 +50,7 @@ In \texttt{Config.scala}, \texttt{SPARK\_MASTER = "local[*]"} impiega tutti i co
 Il modello driver--executor si presta a una lettura intuitiva del flusso della pipeline.
 Il \emph{driver} ospita la \texttt{SparkSession}, costruisce i piani logici e coordina l'esecuzione; gli \emph{executor} eseguono i task sulle partizioni di dati.
 In modalità \texttt{local[*]}, driver e executor condividono la stessa JVM, il che semplifica il debug ma non permette di osservare il comportamento di rete e shuffle tipico di un cluster distribuito.
-Per il training su $\sim$80\,000 righe e per micro-batch di pochi record in streaming, questa configurazione è adeguata; il collo di bottiglia, come mostrato nel Capitolo~\ref{ch:analisi-dei-risultati-e-test}, risiede più nello scheduling dei micro-batch che nella capacità di parallelizzazione locale.
+Per il training su $\sim$570\,000 righe e per micro-batch di pochi record in streaming, questa configurazione è adeguata; il collo di bottiglia, come mostrato nel Capitolo~\ref{ch:analisi-dei-risultati-e-test}, risiede più nello scheduling dei micro-batch che nella capacità di parallelizzazione locale.
 
 \subsection{Spark SQL, Catalyst e Tungsten}\label{subsec:catalyst-tungsten}
 
@@ -128,7 +128,7 @@ I trigger principali sono: \texttt{ProcessingTime(interval)} (micro-batch period
 
 \paragraph{Micro-batch vs continuous processing.}
 Structured Streaming implementa, di fatto, micro-batch su Spark SQL; la modalità \emph{continuous processing} (latenza sub-secondo) resta sperimentale e limitata nel set di operatori.
-Per la tesi, il modello a micro-batch è accettabile: latenza end-to-end nell'ordine di centinaia di millisecondi resta compatibile con monitoraggio \emph{near-real-time}, come discusso nel Capitolo~\ref{ch:analisi-dei-risultati-e-test}.
+Per la tesi, il modello a micro-batch è accettabile: la latenza end-to-end misurata, nell'ordine di alcuni secondi in regime stazionario, resta compatibile con scenari di monitoraggio \emph{near-real-time} non critico, come discusso nel Capitolo~\ref{ch:analisi-dei-risultati-e-test}.
 
 Nel componente \texttt{EcgStreamingPredictor}, Structured Streaming consuma Kafka, applica \texttt{pipelineModel.transform} e scrive su Delta tramite \texttt{foreachBatch}.
 Questa scelta consente logica custom (\texttt{persist}, \texttt{isEmpty}, logging) a fronte di una gestione più esplicita del sink rispetto a \texttt{format("delta")} nativo.

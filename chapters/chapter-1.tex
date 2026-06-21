@@ -158,12 +158,13 @@ In produzione, la fase può risiedere sul dispositivo wearable o su un gateway, 
 \section{Dataset sperimentale: MIT--BIH tabellare (Kaggle)}\label{sec:dataset}
 
 Per la fase sperimentale si utilizza la versione tabellare del \textbf{MIT--BIH Arrhythmia Database} pubblicata nel corpus Kaggle \emph{ECG Arrhythmia Classification Dataset}~\cite{sakib2021kaggle,sakib2021edge}, derivato dalla raccolta originale su PhysioNet~\cite{moody2001impact,goldberger2000physiobank}.
-Il bundle Kaggle contiene più file CSV (MIT--BIH, MIT--BIH Supraventricular, INCART, SCD Holter); il prototipo Scala legge tramite \texttt{DATASET\_PATH} i file \texttt{*.csv} presenti nella directory configurata: nelle sperimentazioni descritte in questa tesi si assume il file \texttt{MIT-BIH Arrhythmia Database.csv}, così da restare allineati al benchmark MIT--BIH senza mescolare registrazioni di altri database.
+Il bundle Kaggle contiene più file CSV (MIT--BIH, MIT--BIH Supraventricular, INCART, SCD Holter); il prototipo Scala legge tramite \texttt{DATASET\_PATH} i file \texttt{*.csv} presenti nella directory configurata: nelle sperimentazioni descritte in questa tesi sono stati utilizzati i tre file principali (MIT--BIH Arrhythmia Database, MIT--BIH Supraventricular Arrhythmia Database e INCART 2-lead Arrhythmia Database), per un corpus complessivo di 712\,822 battiti dopo pulizia dei valori nulli, come riportato nel Capitolo~\ref{ch:analisi-dei-risultati-e-test}.
+La descrizione del dataset in questa sezione si riferisce specificamente al file \texttt{MIT-BIH Arrhythmia Database.csv}, che ne costituisce il sotto-insieme clinicamente più documentato in letteratura e il punto di riferimento per i benchmark di classificazione.
 
 \subsection{Origine e caratteristiche del corpus PhysioNet}
 
 Il MIT--BIH originale~\cite{moody2001impact,goldberger2000physiobank} è una raccolta acquisita tra il 1975 e il 1979 presso il Beth Israel Hospital (oggi Beth Israel Deaconess Medical Center), con campionamento a 360~Hz e risoluzione di 11 bit su circa 10~mV di dinamica.
-Il corpus è diventato, nel tempo, uno \emph{benchmark} de facto per la classificazione automatica dei battiti.
+Il corpus è diventato, nel tempo, un \emph{benchmark} de facto per la classificazione automatica dei battiti.
 
 Le proprietà salienti del database grezzo sono le seguenti:
 \begin{itemize}
@@ -176,7 +177,7 @@ La versione CSV impiegata nel progetto non contiene campioni raw del segnale, be
 
 Il corpus PhysioNet~\cite{goldberger2000physiobank} ha svolto un ruolo fondamentale nella standardizzazione della ricerca su segnali fisiologici, offrendo accesso libero a database annotati e toolkit di analisi.
 Il MIT--BIH Arrhythmia Database, in particolare, è stato utilizzato in centinaia di pubblicazioni come benchmark per confrontare algoritmi di classificazione, rilevamento QRS e misura di intervalli.
-La sua longevità comporta però anche limiti noti: acquisizioni datate, popolazione non rappresentativa dell'attuale demografia clinica, e annotazioni che, sebbene curate da esperti, non sono immune da disaccordi inter-osservatore su casi borderline.
+La sua longevità comporta però anche limiti noti: acquisizioni datate, popolazione non rappresentativa dell'attuale demografia clinica, e annotazioni che, sebbene curate da esperti, non sono immuni da disaccordi inter-osservatore su casi borderline.
 Per una tesi focalizzata sull'architettura della pipeline, questi limiti sono accettabili; per una validazione clinica, richiederebbero integrazione con dataset più recenti e diversificati.
 
 \subsection{Schema del file CSV e volume dati}
@@ -185,7 +186,8 @@ Il file \texttt{MIT-BIH Arrhythmia Database.csv} contiene \textbf{100\,689} batt
 Quattro tracce presenti nel MIT--BIH grezzo non compaiono nel CSV preprocessato, probabilmente escluse in fase di estrazione per qualità del segnale o annotazioni incomplete.
 Ogni riga corrisponde a un battito; le feature duplicano la stessa semantica su due derivazioni (lead~II, prefisso \texttt{0\_}; lead~V5, prefisso \texttt{1\_}), come riassunto in Tabella~\ref{tab:csv-schema}.
 
-Il volume di circa 100\,000 battiti è sufficiente per addestrare modelli ensemble su singola macchina con tempi di esecuzione contenuti, ma non rappresenta la scala di un deployment multi-paziente in cui milioni di battiti al giorno confluiscono verso un data center.
+Il volume del solo file MIT--BIH è di circa 100\,000 battiti: sufficiente a descrivere la struttura e i pattern del dataset di riferimento in letteratura, ma non rappresentativo del corpus totale impiegato nell'esperimento.
+Sommando i tre file del bundle, il corpus complessivo ammonta a 712\,822 battiti, sufficienti per addestrare modelli ensemble su singola macchina con tempi di esecuzione contenuti, ma non rappresentativi della scala di un deployment multi-paziente in cui milioni di battiti al giorno confluiscono verso un data center.
 In tale prospettiva, la pipeline descritta in questa tesi funge da \emph{prova di concetto} su scala ridotta: le stesse tecnologie (Kafka, Spark, Delta) sono progettate per gestire volumi ordini di grandezza superiori, come discusso nei capitoli dedicati allo stack tecnologico e alla scalabilità.
 La scelta di limitare il simulatore a 1000 messaggi per run sperimentale riduce ulteriormente il carico, mantenendo comunque un percorso end-to-end verificabile.
 
