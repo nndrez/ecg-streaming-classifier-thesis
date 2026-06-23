@@ -94,6 +94,7 @@
 
     \hypersetup{pageanchor=true}
     \cleardoublepage
+    \phantomsection
     \addcontentsline{toc}{chapter}{Sommario}
     \label{ch:sommario}
     \vspace*{\fill}
@@ -116,6 +117,8 @@
     \pagestyle{fancy}
     \pagenumbering{arabic}
     \setcounter{page}{1}
+    \setcounter{tocdepth}{1}
+    \bookmarksetup{depth=1}
 
     \chapter{Introduzione}
     \label{ch:introduzione}
