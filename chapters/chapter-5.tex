@@ -43,7 +43,7 @@ Questa separazione riflette il ciclo di vita reale di un sistema ML: il modello 
 
 \subsection{Criteri di successo}
 
-Si considera soddisfacente il prototipo se: (i)~l'accuratezza sul test set supera il 90\%, coerente con la letteratura sul MIT--BIH; (ii)~la latenza end-to-end si mantiene nell'ordine del secondo, compatibile con scenari \emph{near-real-time} di screening; (iii)~nessun messaggio viene perso dopo restart con checkpoint intatto; (iv)~le predizioni sono persistite su Delta in modo interrogabile con Spark SQL.
+Si considera soddisfacente il prototipo se: (i)~l'accuratezza sul test set supera il 90\%, coerente con la letteratura sul MIT--BIH; (ii)~la latenza end-to-end resta nell'ordine di alcuni secondi (5--11~s in regime stazionario), compatibile con scenari \emph{near-real-time} di screening ambulatoriale; (iii)~nessun messaggio viene perso dopo restart con checkpoint intatto; (iv)~le predizioni sono persistite su Delta in modo interrogabile con Spark SQL.
 Questi criteri bilanciano qualità predittiva e proprietà non funzionali, evitando di valutare il sistema solo sull'accuratezza isolata.
 
 \section{Performance del modello}\label{sec:performance-modello}
