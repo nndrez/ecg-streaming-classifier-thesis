@@ -57,7 +57,7 @@ La configurazione è vicina alla Lambda con confine netto training/serving, prat
 \end{table}
 
 Rispetto alla Kappa pura, manca la possibilità di riaddestrare rileggendo soltanto Kafka: il training legge CSV storici, non il topic.
-Rispetto alla Lambda pura, manca un serving layer che fondo viste batch e real-time; le predizioni sono scritte direttamente su Delta Lake dal predictor.
+Rispetto alla Lambda pura, manca un serving layer che fonde viste batch e real-time; le predizioni sono scritte direttamente su Delta Lake dal predictor.
 
 La letteratura sui sistemi ML in produzione~\cite{sculley2015hidden} evidenzia come la separazione tra training e serving sia una delle fonti principali di \emph{technical debt}: pipeline di feature engineering diverse, versioni di librerie non allineate, assenza di monitoraggio del drift.
 Il progetto mitiga parte di questo rischio usando la stessa \texttt{PipelineModel} serializzata per batch e streaming, e lo stesso schema JSON derivato dal CSV di training.
@@ -231,7 +231,7 @@ Alternative valutabili nello stesso stack Spark includono:
   \item \textbf{Reti neurali}: richiederebbero export e serving fuori dalla Pipeline MLlib, aumentando la complessità operativa senza beneficio dimostrato su questo dataset nel prototipo.
 \end{itemize}
 
-\textbf{Feature importance.} Random Forest fornisce, per ogni albero, una misura di impurezza ridotta per split; aggregando sui 100 alberi si ottiene un ranking delle feature utile per dialogare con il dominio clinico (quali descrittori RR o QRS guidano le confusions tra N e V).
+\textbf{Feature importance.} Random Forest fornisce, per ogni albero, una misura di impurezza ridotta per split; aggregando sui 100 alberi si ottiene un ranking delle feature utile per dialogare con il dominio clinico (quali descrittori RR o QRS guidano le confusioni tra N e V).
 Non è implementata nel codice attuale, ma resta un'estensione naturale per migliorare l'interpretabilità senza cambiare architettura.
 
 \textbf{Cross-validation.} MLlib espone \texttt{CrossValidator} e \texttt{TrainValidationSplit} per grid search su \texttt{numTrees} e \texttt{maxDepth}.

@@ -2,7 +2,7 @@ Il monitoraggio continuo dell'elettrocardiogramma impone di classificare ogni ba
 Molti lavori sulla classificazione automatica si limitano all'addestramento e alla valutazione offline, senza collegare ingestion, inferenza e persistenza in un'architettura eseguibile.
 
 Si propone una pipeline end-to-end per la classificazione \emph{near-real-time} di battiti ECG, con approccio ibrido batch/streaming.
-Un \texttt{RandomForestClassifier} con 100 alberi e profondità massima 15, addestrato in batch su 570\,214 campioni estratti da tre database del corpus MIT-BIH in formato tabulare, viene distribuito come artefatto e applicato in streaming da Apache Spark Structured Streaming su eventi Kafka pubblicati da un simulatore edge.
+Un \texttt{RandomForestClassifier} con 100 alberi e profondità massima 15, addestrato in batch su 570\,214 campioni estratti da tre file CSV del bundle Kaggle \emph{ECG Arrhythmia Classification Dataset} in formato tabulare, viene distribuito come artefatto e applicato in streaming da Apache Spark Structured Streaming su eventi Kafka pubblicati da un simulatore edge.
 Le predizioni sono scritte su Delta Lake con checkpointing, garantendo recupero dopo failure e disaccoppiamento tra producer e consumer.
 L'implementazione in Scala è riproducibile con Docker e \texttt{sbt}.
 

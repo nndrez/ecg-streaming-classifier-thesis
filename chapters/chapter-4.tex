@@ -73,7 +73,7 @@ Non sono presenti dipendenze di test (\texttt{scalatest}) né plugin di packagin
 
 L'assenza di \texttt{sbt-assembly} implica che l'esecuzione avviene tramite \texttt{sbt run}, che risolve le dipendenze Spark e Delta dal classpath SBT.
 In un deployment cluster, sarebbe necessario costruire un \emph{fat JAR} con tutte le dipendenze (o usare Spark submit con --packages), e gestire i conflitti di versione tra connettori Kafka, Delta e runtime Spark.
-Per il prototipo locale, \texttt{sbt run} è sufficiente e riduce la complessità di build; la transizione verso packaging production-grade è una estensione naturale non affrontata in questa tesi.
+Per il prototipo locale, \texttt{sbt run} è sufficiente e riduce la complessità di build; la transizione verso packaging production-grade è un'estensione naturale non affrontata in questa tesi.
 
 \section{Infrastruttura Docker e broker Kafka}\label{sec:docker-kafka}
 
@@ -403,7 +403,7 @@ predictorThread.join(60000)
 
 \texttt{setDaemon(true)} fa sì che la JVM termini quando il main thread completa, ma il successivo \texttt{join(60000)} assicura che il predictor abbia il tempo di scrivere gli ultimi micro-batch prima che la sessione venga chiusa.
 Il periodo di grazia (\texttt{STREAMING\_GRACE\_PERIOD\_MS = 30~s}) intercorre tra la fine del simulatore e la chiamata a \texttt{stop()}: garantisce che i messaggi già presenti nel buffer Kafka vengano elaborati e persistiti su Delta prima dello shutdown.
-L'attesa di 15 secondi prima del simulatore è una euristica fragile: un health-check esplicito sarebbe preferibile.
+L'attesa di 15 secondi prima del simulatore è un'euristica fragile: un health-check esplicito sarebbe preferibile.
 
 \subsection{Banner di avvio}
 

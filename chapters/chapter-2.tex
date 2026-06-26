@@ -133,7 +133,7 @@ Per la tesi, il modello a micro-batch è accettabile: la latenza end-to-end misu
 Nel componente \texttt{EcgStreamingPredictor}, Structured Streaming consuma Kafka, applica \texttt{pipelineModel.transform} e scrive su Delta tramite \texttt{foreachBatch}.
 Questa scelta consente logica custom (\texttt{persist}, \texttt{isEmpty}, logging) a fronte di una gestione più esplicita del sink rispetto a \texttt{format("delta")} nativo.
 
-Structured Streaming gestisce internamente lo stato del query plan e gli offset Kafka nel checkpoint.
+Structured Streaming gestisce internamente lo stato del piano di query e gli offset Kafka nel checkpoint.
 Dal punto di vista del programmatore, l'API rimane dichiarativa: si definisce la trasformazione e il sink, e il motore si occupa di schedulare micro-batch, gestire failure e garantire progressi.
 Questa astrazione riduce la complessità rispetto a consumer Kafka manuali, dove l'applicazione deve implementare esplicitamente commit degli offset, gestione dei rebalance e recovery dopo crash.
 
