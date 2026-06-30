@@ -64,3 +64,5 @@ _minted*
 *.pyg
 
 AGENTS.md
+
+node_modules/
